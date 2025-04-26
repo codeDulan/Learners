@@ -1,0 +1,9 @@
+
+o
+java:S1192&"RDefine a constant instead of duplicating this literal "Session not found" 5 times.(ÉÓò˜8ßÛÄæ2
+o
+java:S6204!"RReplace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()'(ª™¨¹8ğì‰Åæ2
+o
+java:S6204w"RReplace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()'(ª™¨¹8÷ì‰Åæ2
+p
+java:S6204©"RReplace this usage of 'Stream.collect(Collectors.toList())' with 'Stream.toList()'(ª™¨¹8ûì‰Åæ2

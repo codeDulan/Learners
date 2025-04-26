@@ -1,0 +1,91 @@
+.programs{
+    margin: 60px auto;
+    width: 90%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.program img{
+    width: 100%;
+    border-radius: 10px;
+    display: block;
+}
+
+.program{
+    flex-basis: 31%;
+    position: relative;
+}
+
+.prg2{
+    background-size: cover;
+    height: 255px;
+}
+
+.caption{
+    border-radius: 10px;
+    position: absolute;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    background: rgba(0, 15, 153, 0.3);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    color: #fff;
+    cursor: pointer;
+    opacity: 0; 
+    padding-top: 70%;
+    transition: 0.4s;
+    text-align: center;
+}
+
+.program:hover .caption{
+   opacity: 1;
+   padding-top: 0;
+}
+
+.program p{
+    max-width: 80%;
+}
+
+.program-price {
+    font-weight: bold;
+    font-size: 1.2rem;
+    margin-top: 10px;
+    color: #fff;
+}
+
+.program-duration {
+    font-style: italic;
+    margin-top: 5px;
+}
+
+/* Loading and error states */
+.programs-loading,
+.programs-error,
+.programs-empty {
+    text-align: center;
+    padding: 50px 0;
+    width: 100%;
+    font-size: 1.2rem;
+    color: #666;
+}
+
+.programs-error {
+    color: #d32f2f;
+}
+
+/*----media query-----*/
+
+@media (max-width : 650px){  /* This one add this for when we minimize the webpage create photo verticle.*/
+    .programs{
+        flex-direction: column;
+    }
+    .program{
+        flex-basis: 100%;
+        margin: 20px;
+    }
+}
