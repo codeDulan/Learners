@@ -1,41 +1,314 @@
-import React from 'react';
-import { Box, Typography, useTheme } from '@mui/material';
+import React, { useState, useEffect } from 'react';
+import { Box, Typography, useTheme, CircularProgress } from '@mui/material';
 import { tokens } from '../../theme';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { FiUsers, FiCalendar, FiDollarSign, FiClock, FiCheckCircle } from 'react-icons/fi';
+import axios from 'axios';
 
-// Sample data - replace with actual data from your backend
-const revenueData = [
-  { name: "Jan", revenue: 5000 },
-  { name: "Feb", revenue: 6000 },
-  { name: "Mar", revenue: 8000 },
-  { name: "Apr", revenue: 7500 },
-  { name: "May", revenue: 9000 },
-  { name: "Jun", revenue: 11000 },
-];
-
-const licenseTypeData = [
-  { name: 'Motorcycle', value: 30, color: '#4cceac' },
-  { name: 'Light Vehicle', value: 40, color: '#6870fa' },
-  { name: 'Heavy Vehicle', value: 30, color: '#ff9f43' },
-];
-
-const upcomingSessionsData = [
-  { id: 1, customer: 'John Doe', type: 'Driving Practice', time: '10:00 AM', date: '2025-04-25' },
-  { id: 2, customer: 'Jane Smith', type: 'Theory Lesson', time: '01:30 PM', date: '2025-04-25' },
-  { id: 3, customer: 'Mike Johnson', type: 'Driving Test', time: '11:00 AM', date: '2025-04-26' },
-  { id: 4, customer: 'Sarah Williams', type: 'Driving Practice', time: '03:00 PM', date: '2025-04-27' },
-];
-
-const recentPaymentsData = [
-  { id: 1, customer: 'John Doe', amount: 250, date: '2025-04-22', status: 'Completed' },
-  { id: 2, customer: 'Jane Smith', amount: 300, date: '2025-04-21', status: 'Completed' },
-  { id: 3, customer: 'Mike Johnson', amount: 150, date: '2025-04-20', status: 'Pending' },
-];
+// API Base URL
+const API_BASE_URL = "http://localhost:8080/api";
 
 const AdminDashboard = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  
+  // State for data
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [customers, setCustomers] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
+  const [payments, setPayments] = useState([]);
+  const [sessions, setSessions] = useState([]);
+  const [programs, setPrograms] = useState([]);
+  
+  // State for UI options
+  const [showTodayOnly, setShowTodayOnly] = useState(false);
+  
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+  };
+
+  // Headers for API requests
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    return {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    };
+  };
+
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric"
+    });
+  };
+
+  // Format time for display
+  const formatTime = (dateString) => {
+    if (!dateString) return "";
+    const date = new Date(dateString);
+    return date.toLocaleTimeString("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true
+    });
+  };
+  
+  useEffect(() => {
+    const fetchAllData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        // Fetch sessions first to debug
+        console.log("Fetching sessions...");
+        const sessionsResponse = await axios.get(
+          `${API_BASE_URL}/staff/sessions`,
+          getAuthHeaders()
+        );
+        console.log("Sessions API response:", sessionsResponse);
+        
+        // Check if the data is in the expected format
+        const sessionsData = sessionsResponse.data || [];
+        console.log("Actual session data structure:", sessionsData.length > 0 ? sessionsData[0] : "No sessions");
+        setSessions(sessionsData);
+        
+        // Fetch customers
+        const customersResponse = await axios.get(
+          `${API_BASE_URL}/customers`,
+          getAuthHeaders()
+        );
+        setCustomers(customersResponse.data || []);
+        
+        // Fetch enrollments
+        const enrollmentsResponse = await axios.get(
+          `${API_BASE_URL}/staff/enrollments`,
+          getAuthHeaders()
+        );
+        setEnrollments(enrollmentsResponse.data || []);
+        
+        // Fetch payments
+        const paymentsResponse = await axios.get(
+          `${API_BASE_URL}/staff/payments`,
+          getAuthHeaders()
+        );
+        setPayments(paymentsResponse.data || []);
+        
+        // Fetch training programs
+        const programsResponse = await axios.get(
+          `${API_BASE_URL}/staff/training-programs`,
+          getAuthHeaders()
+        );
+        setPrograms(programsResponse.data || []);
+        
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError(`Failed to load dashboard data: ${err.message}`);
+        setLoading(false);
+      }
+    };
+    
+    fetchAllData();
+  }, []);
+  
+  // Calculate total number of students
+  const totalStudents = customers.length;
+  
+  // Calculate today's sessions
+  const getTodaySessions = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return sessions.filter(session => {
+      const sessionDate = new Date(session.startTime);
+      sessionDate.setHours(0, 0, 0, 0);
+      return sessionDate.getTime() === today.getTime();
+    });
+  };
+  
+  const todaySessionsCount = getTodaySessions().length;
+  
+  // Calculate monthly revenue
+  const calculateMonthlyRevenue = () => {
+    const currentMonth = new Date().getMonth();
+    const currentYear = new Date().getFullYear();
+    
+    return payments
+      .filter(payment => {
+        const paymentDate = new Date(payment.paymentDate);
+        return paymentDate.getMonth() === currentMonth && 
+               paymentDate.getFullYear() === currentYear &&
+               payment.status === "COMPLETED";
+      })
+      .reduce((total, payment) => total + payment.amount, 0);
+  };
+  
+  const monthlyRevenue = calculateMonthlyRevenue();
+  
+  // Calculate completion rate
+  const calculateCompletionRate = () => {
+    if (sessions.length === 0) return 0;
+    
+    const completedSessions = sessions.filter(session => 
+      session.status === "COMPLETED"
+    ).length;
+    
+    return Math.round((completedSessions / sessions.length) * 100);
+  };
+  
+  const completionRate = calculateCompletionRate();
+  
+  // Create revenue data for chart
+  const getRevenueData = () => {
+    const months = [];
+    const currentDate = new Date();
+    
+    for (let i = 5; i >= 0; i--) {
+      const month = new Date(currentDate.getFullYear(), currentDate.getMonth() - i, 1);
+      const monthName = month.toLocaleString('default', { month: 'short' });
+      
+      const revenueInMonth = payments
+        .filter(payment => {
+          const paymentDate = new Date(payment.paymentDate);
+          return paymentDate.getMonth() === month.getMonth() && 
+                 paymentDate.getFullYear() === month.getFullYear() &&
+                 payment.status === "COMPLETED";
+        })
+        .reduce((total, payment) => total + payment.amount, 0);
+      
+      months.push({
+        name: monthName,
+        revenue: revenueInMonth
+      });
+    }
+    
+    return months;
+  };
+  
+  const revenueData = getRevenueData();
+  
+  // Get license type distribution
+  const getLicenseTypeData = () => {
+    if (enrollments.length === 0) return [];
+    
+    const licenseCounts = {};
+    
+    enrollments.forEach(enrollment => {
+      const program = programs.find(p => p.id === enrollment.programId);
+      if (program) {
+        const licenseType = program.licenseType || "Unknown";
+        licenseCounts[licenseType] = (licenseCounts[licenseType] || 0) + 1;
+      }
+    });
+    
+    const licenseColors = {
+      "MOTORCYCLE": '#4cceac',
+      "LIGHT_VEHICLE": '#6870fa',
+      "HEAVY_VEHICLE": '#ff9f43',
+      "Unknown": '#888888'
+    };
+    
+    return Object.keys(licenseCounts).map(key => ({
+      name: key.replace('_', ' ').toLowerCase().replace(/\b\w/g, l => l.toUpperCase()),  // Format license type name
+      value: licenseCounts[key],
+      color: licenseColors[key] || '#888888'
+    }));
+  };
+  
+  const licenseTypeData = getLicenseTypeData();
+  
+  // Get upcoming sessions
+  const getUpcomingSessions = () => {
+    const now = new Date();
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today
+    
+    // Filter upcoming sessions
+    return sessions
+      .filter(session => {
+        const sessionDate = new Date(session.startTime);
+        const sessionDayStart = new Date(sessionDate);
+        sessionDayStart.setHours(0, 0, 0, 0);
+        
+        // Basic filter: future sessions that aren't cancelled
+        const isUpcoming = sessionDate > now && session.status !== "CANCELLED";
+        
+        // Additional filter: only today's sessions if showTodayOnly is true
+        if (showTodayOnly) {
+          return isUpcoming && sessionDayStart.getTime() === today.getTime();
+        }
+        
+        return isUpcoming;
+      })
+      .sort((a, b) => new Date(a.startTime) - new Date(b.startTime))
+      .slice(0, 4) // Show top 4 sessions
+      .map(session => {
+        // Find customer name
+        const enrollment = enrollments.find(e => e.id === session.enrollmentId);
+        const customer = enrollment ? 
+          customers.find(c => c.id === enrollment.customerId) : null;
+        
+        return {
+          id: session.id,
+          customer: customer ? `${customer.firstName} ${customer.lastName}` : "Unknown",
+          title: session.title,
+          type: session.type || "Session",
+          time: formatTime(session.startTime),
+          date: formatDate(session.startTime)
+        };
+      });
+  };
+  
+  // Re-calculate whenever showTodayOnly changes
+  const upcomingSessionsData = getUpcomingSessions();
+  
+  // Get recent payments
+  const getRecentPayments = () => {
+    return payments
+      .sort((a, b) => new Date(b.paymentDate) - new Date(a.paymentDate))
+      .slice(0, 3)
+      .map(payment => {
+        // Find customer name
+        const enrollment = enrollments.find(e => e.id === payment.enrollmentId);
+        const customer = enrollment ? 
+          customers.find(c => c.id === enrollment.customerId) : null;
+        
+        return {
+          id: payment.id,
+          customer: customer ? `${customer.firstName} ${customer.lastName}` : "Unknown",
+          amount: payment.amount,
+          date: formatDate(payment.paymentDate),
+          status: payment.status
+        };
+      });
+  };
+  
+  const recentPaymentsData = getRecentPayments();
+
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="80vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Box p={4} bgcolor="error.main" color="error.contrastText" borderRadius={2}>
+        <Typography variant="h6">{error}</Typography>
+      </Box>
+    );
+  }
 
   return (
     <Box>
@@ -76,12 +349,12 @@ const AdminDashboard = () => {
               Total Students
             </Typography>
             <Typography variant="h3" fontWeight="bold">
-              154
+              {totalStudents}
             </Typography>
           </Box>
         </Box>
 
-        {/* Upcoming Sessions */}
+        {/* Today's Sessions */}
         <Box 
           gridColumn="span 3" 
           backgroundColor={colors.primary[400]} 
@@ -107,7 +380,7 @@ const AdminDashboard = () => {
               Today's Sessions
             </Typography>
             <Typography variant="h3" fontWeight="bold">
-              8
+              {todaySessionsCount}
             </Typography>
           </Box>
         </Box>
@@ -138,7 +411,7 @@ const AdminDashboard = () => {
               Monthly Revenue
             </Typography>
             <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-              $11,000
+              Rs.{monthlyRevenue}
             </Typography>
           </Box>
         </Box>
@@ -169,7 +442,7 @@ const AdminDashboard = () => {
               Completion Rate
             </Typography>
             <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-              85%
+              {completionRate}%
             </Typography>
           </Box>
         </Box>
@@ -213,7 +486,7 @@ const AdminDashboard = () => {
                 <YAxis 
                   stroke={colors.grey[100]}
                   style={{ fontSize: '12px' }}
-                  tickFormatter={(v) => `$${v}`}
+                  tickFormatter={(v) => `Rs.${v}`}
                 />
                 <CartesianGrid strokeDasharray="3 3" stroke={colors.grey[800]} />
                 <Tooltip 
@@ -248,33 +521,37 @@ const AdminDashboard = () => {
             Students by License Type
           </Typography>
           <Box height="300px" display="flex" alignItems="center" justifyContent="center">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={licenseTypeData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={60}
-                  outerRadius={90}
-                  paddingAngle={5}
-                  dataKey="value"
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
-                  labelLine={false}
-                >
-                  {licenseTypeData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip 
-                  formatter={(value) => [`${value}%`, 'Students']}
-                  contentStyle={{
-                    backgroundColor: colors.primary[500],
-                    borderColor: colors.grey[800],
-                    color: colors.grey[100]
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
+            {licenseTypeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={licenseTypeData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={90}
+                    paddingAngle={5}
+                    dataKey="value"
+                    label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                    labelLine={false}
+                  >
+                    {licenseTypeData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    formatter={(value) => [`${value}`, 'Students']}
+                    contentStyle={{
+                      backgroundColor: colors.primary[500],
+                      borderColor: colors.grey[800],
+                      color: colors.grey[100]
+                    }}
+                  />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <Typography color={colors.grey[300]}>No license data available</Typography>
+            )}
           </Box>
         </Box>
       </Box>
@@ -293,54 +570,94 @@ const AdminDashboard = () => {
           borderRadius="10px"
           boxShadow="0 4px 10px rgba(0, 0, 0, 0.1)"
         >
-          <Typography variant="h5" fontWeight="600" mb={3}>
-            Today's Upcoming Sessions
+          <Typography variant="h5" fontWeight="600" mb={2}>
+            Upcoming Sessions
           </Typography>
           
+          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
+            <Box 
+              component="label" 
+              display="flex" 
+              alignItems="center" 
+              gap={1}
+              sx={{ cursor: 'pointer' }}
+            >
+              <input 
+                type="checkbox" 
+                checked={showTodayOnly} 
+                onChange={() => setShowTodayOnly(!showTodayOnly)}
+              />
+              <Typography variant="body2" color={colors.grey[300]}>
+                Show today's sessions only
+              </Typography>
+            </Box>
+            <Typography variant="caption" color={colors.grey[400]}>
+              {showTodayOnly ? "Showing today only" : "Showing all upcoming"}
+            </Typography>
+          </Box>
+          
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '300px', overflowY: 'auto', pr: 1 }}>
-            {upcomingSessionsData.map((session) => (
+            {upcomingSessionsData.length > 0 ? (
+              upcomingSessionsData.map((session) => (
+                <Box 
+                  key={session.id}
+                  p={2}
+                  backgroundColor={colors.primary[500]}
+                  borderRadius="4px"
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  boxShadow="0 2px 5px rgba(0,0,0,0.08)"
+                >
+                  <Box display="flex" alignItems="center">
+                    <Box
+                      backgroundColor={
+                        session.type === "TEST" 
+                          ? colors.redAccent[500] 
+                          : session.type === "THEORY"
+                            ? colors.blueAccent[500]
+                            : colors.greenAccent[500]
+                      }
+                      p={1}
+                      borderRadius="50%"
+                      mr={2}
+                      display="flex"
+                      justifyContent="center"
+                      alignItems="center"
+                    >
+                      <FiClock size={16} style={{ color: colors.primary[400] }} />
+                    </Box>
+                    <Box>
+                      <Typography variant="body1" fontWeight="bold">
+                        {session.title || "Scheduled Session"}
+                      </Typography>
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Typography variant="body2" color={colors.grey[300]}>
+                          {session.type}
+                        </Typography>
+                        <Typography variant="caption" color={colors.grey[400]}>
+                          {session.date}
+                        </Typography>
+                      </Box>
+                    </Box>
+                  </Box>
+                  <Typography variant="body2" sx={{ fontWeight: 'medium', color: colors.blueAccent[300] }}>
+                    {session.time}
+                  </Typography>
+                </Box>
+              ))
+            ) : (
               <Box 
-                key={session.id}
                 p={2}
                 backgroundColor={colors.primary[500]}
                 borderRadius="4px"
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                boxShadow="0 2px 5px rgba(0,0,0,0.08)"
+                textAlign="center"
               >
-                <Box display="flex" alignItems="center">
-                  <Box
-                    backgroundColor={
-                      session.type === "Driving Test" 
-                        ? colors.redAccent[500] 
-                        : session.type === "Theory Lesson"
-                          ? colors.blueAccent[500]
-                          : colors.greenAccent[500]
-                    }
-                    p={1}
-                    borderRadius="50%"
-                    mr={2}
-                    display="flex"
-                    justifyContent="center"
-                    alignItems="center"
-                  >
-                    <FiClock size={16} style={{ color: colors.primary[400] }} />
-                  </Box>
-                  <Box>
-                    <Typography variant="body1" fontWeight="bold">
-                      {session.customer}
-                    </Typography>
-                    <Typography variant="body2" color={colors.grey[300]}>
-                      {session.type}
-                    </Typography>
-                  </Box>
-                </Box>
-                <Typography variant="body2" sx={{ fontWeight: 'medium', color: colors.blueAccent[300] }}>
-                  {session.time}
+                <Typography color={colors.grey[300]}>
+                  No upcoming sessions
                 </Typography>
               </Box>
-            ))}
+            )}
           </Box>
         </Box>
 
@@ -357,51 +674,64 @@ const AdminDashboard = () => {
           </Typography>
           
           <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, maxHeight: '300px', overflowY: 'auto', pr: 1 }}>
-            {recentPaymentsData.map((payment) => (
+            {recentPaymentsData.length > 0 ? (
+              recentPaymentsData.map((payment) => (
+                <Box 
+                  key={payment.id}
+                  p={2}
+                  backgroundColor={colors.primary[500]}
+                  borderRadius="4px"
+                  display="flex"
+                  justifyContent="space-between"
+                  alignItems="center"
+                  boxShadow="0 2px 5px rgba(0,0,0,0.08)"
+                >
+                  <Box>
+                    <Typography variant="body1" fontWeight="bold">
+                      {payment.customer}
+                    </Typography>
+                    <Typography variant="body2" color={colors.grey[300]}>
+                      {payment.date}
+                    </Typography>
+                  </Box>
+                  <Box display="flex" alignItems="center">
+                    <Typography 
+                      variant="body1" 
+                      fontWeight="bold" 
+                      color={colors.greenAccent[400]}
+                      mr={2}
+                    >
+                      Rs.{payment.amount}
+                    </Typography>
+                    <Box 
+                      px={1.5}
+                      py={0.5}
+                      borderRadius="4px"
+                      backgroundColor={
+                        payment.status === "COMPLETED"
+                          ? colors.greenAccent[600]
+                          : colors.redAccent[600]
+                      }
+                    >
+                      <Typography variant="body2" color="#ffffff">
+                        {payment.status}
+                      </Typography>
+                    </Box>
+                  </Box>
+                </Box>
+              ))
+            ) : (
               <Box 
-                key={payment.id}
                 p={2}
                 backgroundColor={colors.primary[500]}
                 borderRadius="4px"
-                display="flex"
-                justifyContent="space-between"
-                alignItems="center"
-                boxShadow="0 2px 5px rgba(0,0,0,0.08)"
+                textAlign="center"
               >
-                <Box>
-                  <Typography variant="body1" fontWeight="bold">
-                    {payment.customer}
-                  </Typography>
-                  <Typography variant="body2" color={colors.grey[300]}>
-                    {payment.date}
-                  </Typography>
-                </Box>
-                <Box display="flex" alignItems="center">
-                  <Typography 
-                    variant="body1" 
-                    fontWeight="bold" 
-                    color={colors.greenAccent[400]}
-                    mr={2}
-                  >
-                    ${payment.amount}
-                  </Typography>
-                  <Box 
-                    px={1.5}
-                    py={0.5}
-                    borderRadius="4px"
-                    backgroundColor={
-                      payment.status === "Completed"
-                        ? colors.greenAccent[600]
-                        : colors.redAccent[600]
-                    }
-                  >
-                    <Typography variant="body2" color="#ffffff">
-                      {payment.status}
-                    </Typography>
-                  </Box>
-                </Box>
+                <Typography color={colors.grey[300]}>
+                  No recent payments
+                </Typography>
               </Box>
-            ))}
+            )}
           </Box>
         </Box>
       </Box>

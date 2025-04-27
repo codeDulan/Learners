@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTheme } from '@mui/material';
 import { Box, Typography } from '@mui/material';
 import { tokens } from '../../theme';
+import axios from 'axios';
 import { 
   FiHome, 
   FiUsers, 
@@ -13,20 +14,93 @@ import {
   FiUpload,
   FiSettings,
   FiUserPlus,
-  FiMessageSquare  // Added for feedback
+  FiMessageSquare
 } from 'react-icons/fi';
+
+const API_BASE_URL = "http://localhost:8080/api";
 
 const AdminSidebar = () => {
   const location = useLocation();
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
+  // User state
+  const [currentUser, setCurrentUser] = useState({
+    name: "Loading...",
+    role: "STAFF"
+  });
+  const [loading, setLoading] = useState(true);
+  
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+  };
+
+  // Headers for API requests
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    return {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    };
+  };
+
+  // Fetch current user info
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      setLoading(true);
+      
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/staff/me`,
+          getAuthHeaders()
+        );
+        
+        setCurrentUser({
+          name: response.data.name || "Unknown User",
+          role: response.data.role || "STAFF"
+        });
+        
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+        // Fallback to default values on error
+        setCurrentUser({
+          name: "Admin User", 
+          role: "STAFF"      
+        });
+        setLoading(false);
+      }
+    };
+    
+    // Only fetch if we have a token
+    if (getAuthToken()) {
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  // Format role for display
+  const formatRole = (role) => {
+    if (!role) return "";
+    return role.charAt(0) + role.slice(1).toLowerCase();
+  };
+  
+  // Get first letter of name for avatar
+  const getFirstLetter = (name) => {
+    if (!name || name === "Loading...") return "?";
+    return name.charAt(0).toUpperCase();
+  };
+  
   const navItems = [
     { icon: <FiHome />, label: 'Dashboard', path: '/staff/dashboard' },
     { icon: <FiUsers />, label: 'Customers', path: '/staff/customers' },
     { icon: <FiUserPlus />, label: 'Enrollments', path: '/staff/enrollments' },
     { icon: <FiCalendar />, label: 'Sessions', path: '/staff/sessions' },
-    { icon: <FiMessageSquare />, label: 'Feedback', path: '/staff/feedback' }, // Added this line
+    { icon: <FiMessageSquare />, label: 'Feedback', path: '/staff/feedback' },
     { icon: <FiBookOpen />, label: 'Programs', path: '/staff/training' },
     { icon: <FiDollarSign />, label: 'Payments', path: '/staff/payments' },
     { icon: <FiFileText />, label: 'Reports', path: '/staff/reports' },
@@ -132,6 +206,7 @@ const AdminSidebar = () => {
         ))}
       </Box>
       
+      {/* This is the section that was updated */}
       <Box 
         sx={{ 
           marginTop: 'auto', 
@@ -158,7 +233,9 @@ const AdminSidebar = () => {
               justifyContent: 'center'
             }}
           >
-            <Typography sx={{ color: colors.grey[100] }}>A</Typography>
+            <Typography sx={{ color: colors.grey[100] }}>
+              {getFirstLetter(currentUser.name)}
+            </Typography>
           </Box>
           <Box sx={{ marginLeft: '12px' }}>
             <Typography 
@@ -167,7 +244,7 @@ const AdminSidebar = () => {
                 color: colors.grey[100]
               }}
             >
-              Admin User
+              {loading ? "Loading..." : currentUser.name}
             </Typography>
             <Typography 
               variant="body2" 
@@ -175,7 +252,7 @@ const AdminSidebar = () => {
                 color: colors.grey[300]
               }}
             >
-              Staff
+              {loading ? "" : formatRole(currentUser.role)}
             </Typography>
           </Box>
         </Box>

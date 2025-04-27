@@ -1,13 +1,81 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 import AdminSidebar from './AdminSidebar';
 import { ColorModeContext, tokens, useMode } from '../../theme';
 import { ThemeProvider, CssBaseline, Box, InputBase, IconButton } from '@mui/material';
 import { FiBell, FiSearch, FiUser, FiMoon, FiSun } from 'react-icons/fi';
+import axios from 'axios';
+
+const API_BASE_URL = "http://localhost:8080/api";
 
 const AdminLayout = () => {
   const [theme, colorMode] = useMode();
   const colors = tokens(theme.palette.mode);
+  
+  // Add state for current user
+  const [currentUser, setCurrentUser] = useState({
+    name: "Admin", // Default fallback
+    role: "STAFF"
+  });
+  const [loading, setLoading] = useState(true);
+
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+  };
+
+  // Headers for API requests
+  const getAuthHeaders = () => {
+    const token = getAuthToken();
+    return {
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Content-Type": "application/json"
+      }
+    };
+  };
+
+  // Get first letter of name for avatar
+  const getFirstLetter = (name) => {
+    if (!name) return "A";
+    return name.charAt(0).toUpperCase();
+  };
+
+  // Fetch current user info
+  useEffect(() => {
+    const fetchCurrentUser = async () => {
+      setLoading(true);
+      
+      try {
+        const response = await axios.get(
+          `${API_BASE_URL}/staff/me`,
+          getAuthHeaders()
+        );
+        
+        setCurrentUser({
+          name: response.data.name || "Admin",
+          role: response.data.role || "STAFF"
+        });
+        
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching user data:", err);
+        // Fallback to default value
+        setCurrentUser({
+          name: "Admin", 
+          role: "STAFF"      
+        });
+        setLoading(false);
+      }
+    };
+    
+    // Only fetch if we have a token
+    if (getAuthToken()) {
+      fetchCurrentUser();
+    } else {
+      setLoading(false);
+    }
+  }, []);
 
   return (
     <ColorModeContext.Provider value={colorMode}>
@@ -99,7 +167,7 @@ const AdminLayout = () => {
                   alignItems: 'center',
                   color: 'white'
                 }}>
-                  A
+                  {getFirstLetter(currentUser.name)}
                 </Box>
               </Box>
             </Box>
