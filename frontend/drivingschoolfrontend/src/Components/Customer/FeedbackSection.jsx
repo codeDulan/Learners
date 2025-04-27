@@ -1,94 +1,142 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import axios from "axios";
 
-const FeedbackSection = () => {
-  const [feedback, setFeedback] = useState({
-    type: "Instructor",
-    rating: 0,
-    comments: "",
-  });
+const API_BASE_URL = 'http://localhost:8080/api';
 
-  const handleFeedbackChange = (event) => {
-    const { name, value } = event.target;
-    setFeedback((prevFeedback) => ({
-      ...prevFeedback,
-      [name]: value,
-    }));
+const CustomerFeedbackSection = () => {
+  const [feedbacks, setFeedbacks] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  
+  // Convert rating enum to number of stars
+  const getRatingStars = (rating) => {
+    switch(rating) {
+      case 'POOR': return 1;
+      case 'FAIR': return 2;
+      case 'GOOD': return 3;
+      case 'VERY_GOOD': return 4;
+      case 'EXCELLENT': return 5;
+      default: return 0;
+    }
+  };
+  
+  // Format rating for display
+  const getRatingDisplay = (rating) => {
+    switch(rating) {
+      case 'POOR': return 'Poor';
+      case 'FAIR': return 'Fair';
+      case 'GOOD': return 'Good';
+      case 'VERY_GOOD': return 'Very Good';
+      case 'EXCELLENT': return 'Excellent';
+      default: return rating;
+    }
   };
 
-  const handleRatingClick = (ratingValue) => {
-    setFeedback((prevFeedback) => ({
-      ...prevFeedback,
-      rating: ratingValue,
-    }));
+  // Format date for display
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    const date = new Date(dateString);
+    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
-  const handleSubmitFeedback = () => {
-    // In a real application, you would send this to your backend
-    alert(`Feedback Submitted!\nType: ${feedback.type}\nRating: ${feedback.rating}\nComments: ${feedback.comments}`);
+  // Get auth token from localStorage
+  const getAuthToken = () => {
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
+  };
+
+  useEffect(() => {
+    const fetchFeedbacks = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const token = getAuthToken();
+        const response = await axios.get(`${API_BASE_URL}/customers/feedbacks/my-feedbacks`, {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        setFeedbacks(response.data);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error fetching feedback:", err);
+        setError("Failed to load your feedback. Please try again later.");
+        setLoading(false);
+      }
+    };
     
-    // Reset form after submission
-    setFeedback({
-      type: "Instructor",
-      rating: 0,
-      comments: "",
-    });
+    fetchFeedbacks();
+  }, []);
+
+  // Render star rating
+  const StarRating = ({ rating }) => {
+    const stars = getRatingStars(rating);
+    
+    return (
+      <div className="flex">
+        {[1, 2, 3, 4, 5].map((star) => (
+          <span
+            key={star}
+            className={`text-xl ${
+              stars >= star ? "text-yellow-400" : "text-gray-500"
+            }`}
+          >
+            ★
+          </span>
+        ))}
+        <span className="ml-2 text-gray-300">({getRatingDisplay(rating)})</span>
+      </div>
+    );
   };
 
   return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold mb-4">Submit Your Feedback</h2>
-      <div className="space-y-4">
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">Feedback Type</label>
-          <select
-            name="type"
-            value={feedback.type}
-            onChange={handleFeedbackChange}
-            className="w-full p-2 rounded bg-gray-700 border border-gray-600"
-          >
-            <option value="Instructor">Instructor</option>
-            <option value="Sessions">Sessions</option>
-            <option value="Material">Training Material</option>
-            <option value="Other">Other</option>
-          </select>
+    <div className="space-y-6">
+      <h2 className="text-xl font-semibold mb-4">Your Feedback from Instructors</h2>
+      
+      {loading && (
+        <div className="text-center py-4">
+          <div className="inline-block border-t-4 border-b-4 border-blue-500 rounded-full w-8 h-8 animate-spin"></div>
+          <p className="mt-2 text-gray-400">Loading feedback...</p>
         </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">Rating</label>
-          <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map((star) => (
-              <button
-                key={star}
-                type="button"
-                className={`text-xl ${
-                  feedback.rating >= star ? "text-yellow-400" : "text-gray-500"
-                }`}
-                onClick={() => handleRatingClick(star)}
-              >
-                ★
-              </button>
-            ))}
+      )}
+      
+      {error && (
+        <div className="bg-red-900/30 border border-red-800 text-red-200 px-4 py-3 rounded">
+          <p>{error}</p>
+        </div>
+      )}
+      
+      {!loading && !error && feedbacks.length === 0 && (
+        <div className="bg-gray-800 border border-gray-700 rounded-lg p-4 text-center text-gray-400">
+          <p>You haven't received any feedback yet.</p>
+        </div>
+      )}
+      
+      {feedbacks.map((feedback) => (
+        <div key={feedback.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4 shadow-sm">
+          <div className="flex justify-between items-start mb-2">
+            <div>
+              <h3 className="font-medium text-gray-200">{feedback.sessionTitle}</h3>
+              <p className="text-gray-400 text-sm">{formatDate(feedback.createdAt)}</p>
+            </div>
+            <div className="bg-blue-900/30 border border-blue-800 text-blue-200 text-xs px-2 py-1 rounded">
+              From: {feedback.instructorName}
+            </div>
+          </div>
+          
+          <div className="my-3">
+            <StarRating rating={feedback.rating} />
+          </div>
+          
+          <div className="mt-2 p-3 bg-gray-900 rounded border border-gray-700">
+            <p className="text-gray-300">{feedback.comment}</p>
           </div>
         </div>
-        <div>
-          <label className="block text-sm text-gray-400 mb-2">Comments</label>
-          <textarea
-            name="comments"
-            value={feedback.comments}
-            onChange={handleFeedbackChange}
-            className="w-full p-2 rounded bg-gray-700 border border-gray-600"
-            rows="4"
-            placeholder="Share your experience..."
-          ></textarea>
-        </div>
-        <button
-          onClick={handleSubmitFeedback}
-          className="mt-2 bg-blue-600 px-4 py-2 rounded hover:bg-blue-700 transition-colors"
-        >
-          Submit Feedback
-        </button>
-      </div>
+      ))}
     </div>
   );
 };
 
-export default FeedbackSection;
+export default CustomerFeedbackSection;

@@ -17,7 +17,8 @@ import PaymentsPage from "./Components/Admin/PaymentsPage";
 import DocumentsPage from "./Components/Admin/DocumentsPage";
 import TrainingPage from "./Components/Admin/TrainingPage";
 import SettingsPage from "./Components/Admin/SettingsPage";
-import EnrollmentsPage from "./Components/Admin/EnrollmentsPage"; // Added this line
+import EnrollmentsPage from "./Components/Admin/EnrollmentsPage";
+import FeedbackPage from './Components/Admin/FeedbackPage';
 
 const App = () => {
   return (
@@ -50,6 +51,7 @@ const App = () => {
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="feedback" element={<FeedbackPage />} />
           </Route>
         </Routes>
       </div>

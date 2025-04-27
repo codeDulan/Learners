@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Box, 
   Typography, 
@@ -16,7 +16,9 @@ import {
   CircularProgress,
   MenuItem,
   Select,
-  InputLabel
+  InputLabel,
+  Modal,
+  Paper
 } from '@mui/material';
 import { tokens } from '../../theme';
 import { DataGrid } from '@mui/x-data-grid';
@@ -31,7 +33,9 @@ import {
   FiCreditCard,
   FiXCircle,
   FiFileText,
-  FiSearch
+  FiSearch,
+  FiPrinter,
+  FiDownload
 } from 'react-icons/fi';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
@@ -44,6 +48,7 @@ import enrollmentService from '../../services/enrollmentService';
 const PaymentsPage = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
+  const billRef = useRef(null);
   
   // State
   const [payments, setPayments] = useState([]);
@@ -54,6 +59,8 @@ const PaymentsPage = () => {
   const [searchText, setSearchText] = useState('');
   const [loading, setLoading] = useState(false);
   const [selectedEnrollment, setSelectedEnrollment] = useState(null);
+  const [showBillModal, setShowBillModal] = useState(false);
+  const [currentBill, setCurrentBill] = useState(null);
   const [newPayment, setNewPayment] = useState({
     enrollmentId: '',
     amount: '',
@@ -152,6 +159,7 @@ const PaymentsPage = () => {
   const handleSavePayment = async () => {
     try {
       setLoading(true);
+      let paymentData;
       
       if (editMode) {
         // Update existing payment
@@ -161,17 +169,24 @@ const PaymentsPage = () => {
           status: newPayment.status
         };
         
-        await paymentService.updatePayment(selectedPaymentId, updateData);
+        paymentData = await paymentService.updatePayment(selectedPaymentId, updateData);
         toast.success('Payment updated successfully');
       } else {
         // Create new payment
-        await paymentService.createPayment({
+        paymentData = await paymentService.createPayment({
           enrollmentId: newPayment.enrollmentId,
           amount: parseFloat(newPayment.amount),
           paymentMethod: newPayment.paymentMethod,
           description: newPayment.description
         });
         toast.success('Payment recorded successfully');
+        
+        // Generate bill for the new payment
+        if (paymentData && paymentData.id) {
+          const billData = await prepareBillData(paymentData);
+          setCurrentBill(billData);
+          setShowBillModal(true);
+        }
       }
       
       // Refresh payment data
@@ -367,6 +382,64 @@ const PaymentsPage = () => {
       )
     }
   ];
+
+  // Prepare data for bill generation
+  const prepareBillData = async (payment) => {
+    try {
+      // Find the enrollment details
+      const enrollment = enrollments.find(e => e.id === payment.enrollmentId);
+      if (!enrollment) {
+        console.error("Enrollment not found for payment");
+        return null;
+      }
+
+      // Get current date formatted
+      const today = new Date();
+      const formattedDate = today.toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+
+      // Create bill data object
+      return {
+        receiptNumber: payment.receiptNumber || `RCPT-${payment.id}`,
+        date: formattedDate,
+        paymentDate: payment.paymentDate ? new Date(payment.paymentDate).toLocaleDateString() : today.toLocaleDateString(),
+        customerName: enrollment.customerName,
+        programName: enrollment.programName,
+        amount: payment.amount,
+        paymentMethod: payment.paymentMethod,
+        description: payment.description,
+        schoolName: "Tharuka Learners"
+      };
+    } catch (error) {
+      console.error("Error preparing bill data:", error);
+      return null;
+    }
+  };
+
+  // Handle bill printing
+  const handlePrintBill = () => {
+    const printContent = billRef.current;
+    if (!printContent) return;
+
+    const originalContents = document.body.innerHTML;
+    const printContents = printContent.innerHTML;
+    
+    document.body.innerHTML = printContents;
+    window.print();
+    document.body.innerHTML = originalContents;
+    
+    // Re-render the component after printing
+    window.location.reload();
+  };
+
+  // Handle bill modal close
+  const handleCloseBillModal = () => {
+    setShowBillModal(false);
+    fetchPayments(); // Refresh data
+  };
 
   return (
     <Box>
@@ -705,6 +778,167 @@ const PaymentsPage = () => {
           </Button>
         </DialogActions>
       </Dialog>
+
+      {/* Bill Generation Modal */}
+      <Modal
+        open={showBillModal}
+        onClose={handleCloseBillModal}
+        aria-labelledby="bill-modal-title"
+        aria-describedby="bill-modal-description"
+      >
+        <Box 
+          sx={{ 
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: { xs: '90%', sm: '80%', md: '60%' },
+            maxHeight: '90vh',
+            overflow: 'auto',
+            bgcolor: 'background.paper',
+            borderRadius: 2,
+            boxShadow: 24,
+            p: 4,
+          }}
+        >
+          {/* Bill Receipt Content */}
+          <Paper 
+            elevation={0} 
+            ref={billRef}
+            sx={{ 
+              p: 3, 
+              mb: 3, 
+              bgcolor: '#fff',
+              color: '#000'
+            }}
+          >
+            {currentBill && (
+              <Box sx={{ fontFamily: 'Arial, sans-serif' }}>
+                {/* School Header */}
+                <Box textAlign="center" mb={3}>
+                  <Typography variant="h4" fontWeight="bold" sx={{ color: '#00008B' }}>
+                    THARUKA LEARNERS
+                  </Typography>
+                  <Typography variant="subtitle1" gutterBottom>
+                    Excellence in Education
+                  </Typography>
+                  <Typography variant="body2">
+                    123 Education Road, Knowledge City • Phone: (123) 456-7890
+                  </Typography>
+                  <Typography variant="body2" gutterBottom>
+                    Email: info@tharukalearners.edu • www.tharukalearners.edu
+                  </Typography>
+                </Box>
+
+                {/* Receipt Title */}
+                <Box textAlign="center" mb={2}>
+                  <Typography 
+                    variant="h5" 
+                    component="div" 
+                    fontWeight="bold" 
+                    sx={{ 
+                      borderBottom: '2px solid #000', 
+                      borderTop: '2px solid #000',
+                      py: 1
+                    }}
+                  >
+                    PAYMENT RECEIPT
+                  </Typography>
+                </Box>
+
+                {/* Receipt Details */}
+                <Box 
+                  display="flex" 
+                  justifyContent="space-between" 
+                  mb={3}
+                >
+                  <Box>
+                    <Typography variant="body1" fontWeight="bold">Receipt No: {currentBill.receiptNumber}</Typography>
+                    <Typography variant="body1">Date: {currentBill.date}</Typography>
+                  </Box>
+                  <Box>
+                    <Typography variant="body1">Payment Method: {currentBill.paymentMethod.replace('_', ' ')}</Typography>
+                  </Box>
+                </Box>
+
+                {/* Customer Info */}
+                <Box mb={3}>
+                  <Typography variant="body1"><strong>Student/Customer:</strong> {currentBill.customerName}</Typography>
+                  <Typography variant="body1"><strong>Program:</strong> {currentBill.programName}</Typography>
+                </Box>
+
+                {/* Payment Table */}
+                <Box mb={3} sx={{ border: '1px solid #ddd' }}>
+                  <Box 
+                    display="flex" 
+                    sx={{ 
+                      borderBottom: '1px solid #ddd',
+                      bgcolor: '#f0f0f0',
+                      fontWeight: 'bold'
+                    }}
+                  >
+                    <Box sx={{ width: '70%', p: 1, borderRight: '1px solid #ddd' }}>Description</Box>
+                    <Box sx={{ width: '30%', p: 1, textAlign: 'right' }}>Amount</Box>
+                  </Box>
+                  <Box display="flex">
+                    <Box sx={{ width: '70%', p: 1, borderRight: '1px solid #ddd' }}>
+                      {currentBill.description || `Payment for ${currentBill.programName}`}
+                    </Box>
+                    <Box sx={{ width: '30%', p: 1, textAlign: 'right' }}>
+                      {formatCurrency(currentBill.amount)}
+                    </Box>
+                  </Box>
+                  <Box 
+                    display="flex" 
+                    sx={{ 
+                      borderTop: '1px solid #ddd',
+                      bgcolor: '#f9f9f9',
+                      fontWeight: 'bold' 
+                    }}
+                  >
+                    <Box sx={{ width: '70%', p: 1, borderRight: '1px solid #ddd' }}>Total</Box>
+                    <Box sx={{ width: '30%', p: 1, textAlign: 'right' }}>{formatCurrency(currentBill.amount)}</Box>
+                  </Box>
+                </Box>
+
+                {/* Footer Notes */}
+                <Box textAlign="center" mt={4} sx={{ borderTop: '1px dotted #999', pt: 2 }}>
+                  <Typography variant="body2" gutterBottom>
+                    Thank you for your payment!
+                  </Typography>
+                  <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                    This is an electronically generated receipt and does not require a signature.
+                  </Typography>
+                </Box>
+              </Box>
+            )}
+          </Paper>
+
+          {/* Action Buttons */}
+          <Box display="flex" justifyContent="flex-end" gap={2}>
+            <Button 
+              variant="outlined" 
+              onClick={handleCloseBillModal}
+              startIcon={<FiXCircle />}
+            >
+              Close
+            </Button>
+            <Button 
+              variant="contained" 
+              onClick={handlePrintBill}
+              startIcon={<FiPrinter />}
+              sx={{
+                backgroundColor: colors.greenAccent[600],
+                '&:hover': {
+                  backgroundColor: colors.greenAccent[700]
+                }
+              }}
+            >
+              Print Receipt
+            </Button>
+          </Box>
+        </Box>
+      </Modal>
     </Box>
   );
 };

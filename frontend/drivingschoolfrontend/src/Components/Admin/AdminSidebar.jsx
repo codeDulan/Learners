@@ -12,7 +12,8 @@ import {
   FiFileText,
   FiUpload,
   FiSettings,
-  FiUserPlus  // Added for enrollments
+  FiUserPlus,
+  FiMessageSquare  // Added for feedback
 } from 'react-icons/fi';
 
 const AdminSidebar = () => {
@@ -23,8 +24,9 @@ const AdminSidebar = () => {
   const navItems = [
     { icon: <FiHome />, label: 'Dashboard', path: '/staff/dashboard' },
     { icon: <FiUsers />, label: 'Customers', path: '/staff/customers' },
-    { icon: <FiUserPlus />, label: 'Enrollments', path: '/staff/enrollments' }, // Added this line
+    { icon: <FiUserPlus />, label: 'Enrollments', path: '/staff/enrollments' },
     { icon: <FiCalendar />, label: 'Sessions', path: '/staff/sessions' },
+    { icon: <FiMessageSquare />, label: 'Feedback', path: '/staff/feedback' }, // Added this line
     { icon: <FiBookOpen />, label: 'Programs', path: '/staff/training' },
     { icon: <FiDollarSign />, label: 'Payments', path: '/staff/payments' },
     { icon: <FiFileText />, label: 'Reports', path: '/staff/reports' },

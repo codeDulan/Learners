@@ -6,15 +6,14 @@ import com.example.drivingschoolbackend.repository.CustomerRepository;
 import com.example.drivingschoolbackend.service.EnrollmentService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
 @RestController
-@RequestMapping("/api/customer/enrollments")
+@RequestMapping("/api/customers/enrollments")
 @RequiredArgsConstructor
 public class EnrollmentCustomerController {
 
@@ -22,32 +21,28 @@ public class EnrollmentCustomerController {
     private final CustomerRepository customerRepository;
 
     @GetMapping
-    @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<List<EnrollmentDTO.ResponseDTO>> getMyEnrollments(
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        Customer customer = customerRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalStateException("Customer not found with email: " + userDetails.getUsername()));
-
-        return ResponseEntity.ok(enrollmentService.getEnrollmentsByCustomerId(customer.getId()));
+    public ResponseEntity<List<EnrollmentDTO.ResponseDTO>> getMyEnrollments() {
+        Long customerId = getCurrentCustomerId();
+        return ResponseEntity.ok(enrollmentService.getEnrollmentsByCustomerId(customerId));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('CUSTOMER')")
-    public ResponseEntity<EnrollmentDTO.ResponseDTO> getEnrollmentById(
-            @PathVariable Long id,
-            @AuthenticationPrincipal UserDetails userDetails
-    ) {
-        Customer customer = customerRepository.findByEmail(userDetails.getUsername())
-                .orElseThrow(() -> new IllegalStateException("Customer not found with email: " + userDetails.getUsername()));
-
+    public ResponseEntity<EnrollmentDTO.ResponseDTO> getEnrollmentById(@PathVariable Long id) {
+        Long customerId = getCurrentCustomerId();
         EnrollmentDTO.ResponseDTO enrollment = enrollmentService.getEnrollmentById(id);
 
-        // Verify that the enrollment belongs to the current customer
-        if (!enrollment.getCustomerId().equals(customer.getId())) {
+        if (!enrollment.getCustomerId().equals(customerId)) {
             return ResponseEntity.status(403).build(); // Forbidden
         }
 
         return ResponseEntity.ok(enrollment);
+    }
+
+    private Long getCurrentCustomerId() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        String email = authentication.getName();
+        Customer customer = customerRepository.findByEmail(email)
+                .orElseThrow(() -> new IllegalArgumentException("Customer not found with email: " + email));
+        return customer.getId();
     }
 }
