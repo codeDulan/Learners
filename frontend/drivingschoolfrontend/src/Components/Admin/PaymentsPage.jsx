@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -10,10 +10,13 @@ import {
   DialogActions,
   TextField,
   FormControl,
-  InputLabel,
-  Select,
+  InputAdornment,
+  Autocomplete,
+  IconButton,
+  CircularProgress,
   MenuItem,
-  IconButton
+  Select,
+  InputLabel
 } from '@mui/material';
 import { tokens } from '../../theme';
 import { DataGrid } from '@mui/x-data-grid';
@@ -25,106 +28,98 @@ import {
   FiDollarSign,
   FiCalendar,
   FiCheckCircle,
+  FiCreditCard,
   FiXCircle,
   FiFileText,
-  FiCreditCard,
   FiSearch
 } from 'react-icons/fi';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
+import { toast } from 'react-toastify';
 
-// Sample data - replace with actual data from your backend
-const initialPayments = [
-  {
-    id: 1,
-    customerName: 'John Doe',
-    customerId: 1,
-    amount: 5000,
-    paymentDate: new Date(2025, 3, 15),
-    paymentMethod: 'Cash',
-    description: 'Motorcycle training package - full payment',
-    licenseType: 'Motorcycle',
-    status: 'Completed',
-    receiptNumber: 'REC-001',
-  },
-  {
-    id: 2,
-    customerName: 'Jane Smith',
-    customerId: 2,
-    amount: 3000,
-    paymentDate: new Date(2025, 3, 16),
-    paymentMethod: 'Bank Transfer',
-    description: 'Light Vehicle training package - deposit',
-    licenseType: 'Light Vehicle',
-    status: 'Completed',
-    receiptNumber: 'REC-002',
-  },
-  {
-    id: 3,
-    customerName: 'Mike Johnson',
-    customerId: 3,
-    amount: 2500,
-    paymentDate: new Date(2025, 3, 20),
-    paymentMethod: 'Card',
-    description: 'Heavy Vehicle training - installment payment',
-    licenseType: 'Heavy Vehicle',
-    status: 'Pending',
-    receiptNumber: 'REC-003',
-  },
-];
-
-// Sample customers for dropdown
-const customerOptions = [
-  { id: 1, name: 'John Doe', licenseType: 'Motorcycle' },
-  { id: 2, name: 'Jane Smith', licenseType: 'Light Vehicle' },
-  { id: 3, name: 'Mike Johnson', licenseType: 'Heavy Vehicle' },
-  { id: 4, name: 'Sarah Williams', licenseType: 'Light Vehicle' },
-];
+// Import the services
+import paymentService, { PaymentMethod, PaymentStatus } from '../../services/paymentService';
+import enrollmentService from '../../services/enrollmentService';
 
 const PaymentsPage = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
-  const [payments, setPayments] = useState(initialPayments);
+  // State
+  const [payments, setPayments] = useState([]);
+  const [enrollments, setEnrollments] = useState([]);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [selectedPaymentId, setSelectedPaymentId] = useState(null);
   const [searchText, setSearchText] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [selectedEnrollment, setSelectedEnrollment] = useState(null);
   const [newPayment, setNewPayment] = useState({
-    customerId: '',
+    enrollmentId: '',
     amount: '',
-    paymentDate: new Date(),
     paymentMethod: '',
-    description: '',
-    status: 'Completed',
+    description: ''
   });
+
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchPayments();
+    fetchEnrollments();
+  }, []);
+
+  // Fetch all payments
+  const fetchPayments = async () => {
+    setLoading(true);
+    try {
+      const data = await paymentService.getAllPayments();
+      setPayments(data || []);
+    } catch (error) {
+      toast.error('Failed to load payments');
+      console.error('Error fetching payments:', error);
+      setPayments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Fetch enrollments for dropdown
+  const fetchEnrollments = async () => {
+    try {
+      const data = await enrollmentService.getAllEnrollments();
+      setEnrollments(data || []);
+    } catch (error) {
+      toast.error('Failed to load enrollments');
+      console.error('Error fetching enrollments:', error);
+      setEnrollments([]);
+    }
+  };
 
   // Handle dialog open/close
   const handleOpenDialog = (edit = false, paymentId = null) => {
     if (edit && paymentId) {
       const paymentToEdit = payments.find(payment => payment.id === paymentId);
       if (paymentToEdit) {
+        // Find the enrollment for this payment
+        const enrollment = enrollments.find(e => e.id === paymentToEdit.enrollmentId);
+        setSelectedEnrollment(enrollment || null);
+        
         setNewPayment({
-          customerId: paymentToEdit.customerId,
-          amount: paymentToEdit.amount,
-          paymentDate: paymentToEdit.paymentDate,
+          enrollmentId: paymentToEdit.enrollmentId,
           paymentMethod: paymentToEdit.paymentMethod,
-          description: paymentToEdit.description,
-          status: paymentToEdit.status,
+          description: paymentToEdit.description || '',
+          status: paymentToEdit.status
         });
         setEditMode(true);
         setSelectedPaymentId(paymentId);
       }
     } else {
       setNewPayment({
-        customerId: '',
+        enrollmentId: '',
         amount: '',
-        paymentDate: new Date(),
         paymentMethod: '',
-        description: '',
-        status: 'Completed',
+        description: ''
       });
+      setSelectedEnrollment(null);
       setEditMode(false);
       setSelectedPaymentId(null);
     }
@@ -133,6 +128,15 @@ const PaymentsPage = () => {
 
   const handleCloseDialog = () => {
     setOpenDialog(false);
+  };
+
+  // Handle enrollment selection
+  const handleEnrollmentChange = (event, value) => {
+    setSelectedEnrollment(value);
+    setNewPayment({
+      ...newPayment,
+      enrollmentId: value ? value.id : ''
+    });
   };
 
   // Handle form input changes
@@ -144,77 +148,107 @@ const PaymentsPage = () => {
     });
   };
 
-  const handleDateChange = (date) => {
-    setNewPayment({
-      ...newPayment,
-      paymentDate: date
-    });
-  };
-
   // Handle payment actions
-  const handleSavePayment = () => {
-    const customer = customerOptions.find(c => c.id.toString() === newPayment.customerId.toString());
-    
-    if (editMode) {
-      // Update existing payment
-      setPayments(payments.map(payment => 
-        payment.id === selectedPaymentId
-          ? {
-              ...payment,
-              ...newPayment,
-              customerName: customer.name,
-              licenseType: customer.licenseType
-            }
-          : payment
-      ));
-    } else {
-      // Add new payment
-      const newId = Math.max(...payments.map(p => p.id)) + 1;
-      const receiptNumber = `REC-${newId.toString().padStart(3, '0')}`;
+  const handleSavePayment = async () => {
+    try {
+      setLoading(true);
       
-      setPayments([
-        ...payments,
-        {
-          id: newId,
-          ...newPayment,
-          customerName: customer.name,
-          licenseType: customer.licenseType,
-          receiptNumber
-        }
-      ]);
+      if (editMode) {
+        // Update existing payment
+        const updateData = {
+          paymentMethod: newPayment.paymentMethod,
+          description: newPayment.description,
+          status: newPayment.status
+        };
+        
+        await paymentService.updatePayment(selectedPaymentId, updateData);
+        toast.success('Payment updated successfully');
+      } else {
+        // Create new payment
+        await paymentService.createPayment({
+          enrollmentId: newPayment.enrollmentId,
+          amount: parseFloat(newPayment.amount),
+          paymentMethod: newPayment.paymentMethod,
+          description: newPayment.description
+        });
+        toast.success('Payment recorded successfully');
+      }
+      
+      // Refresh payment data
+      fetchPayments();
+      handleCloseDialog();
+    } catch (error) {
+      console.error('Error saving payment:', error);
+      toast.error(error.response?.data?.message || 'Failed to save payment');
+    } finally {
+      setLoading(false);
     }
-    
-    handleCloseDialog();
   };
 
-  const handleDeletePayment = (id) => {
+  const handleDeletePayment = async (id) => {
     if (window.confirm('Are you sure you want to delete this payment record?')) {
-      setPayments(payments.filter(payment => payment.id !== id));
+      try {
+        setLoading(true);
+        await paymentService.deletePayment(id);
+        toast.success('Payment deleted successfully');
+        fetchPayments();
+      } catch (error) {
+        console.error('Error deleting payment:', error);
+        toast.error('Failed to delete payment');
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   // Filter payments based on search
   const filteredPayments = payments.filter(payment => 
-    payment.customerName.toLowerCase().includes(searchText.toLowerCase()) ||
-    payment.description.toLowerCase().includes(searchText.toLowerCase()) ||
-    payment.receiptNumber.toLowerCase().includes(searchText.toLowerCase())
+    payment?.customerName?.toLowerCase().includes(searchText.toLowerCase()) ||
+    payment?.programName?.toLowerCase().includes(searchText.toLowerCase()) ||
+    payment?.receiptNumber?.toLowerCase().includes(searchText.toLowerCase()) ||
+    payment?.description?.toLowerCase().includes(searchText.toLowerCase())
   );
 
   // Calculate total payments
   const totalPayments = filteredPayments.reduce((sum, payment) => {
-    return payment.status === 'Completed' ? sum + payment.amount : sum;
+    return payment.status === 'COMPLETED' ? sum + (payment.amount || 0) : sum;
   }, 0);
 
-  // DataGrid columns
+  // Get remaining amount for the selected enrollment
+  const getRemainingAmount = (enrollmentId) => {
+    const enrollment = enrollments.find(e => e.id === parseInt(enrollmentId));
+    if (!enrollment) return null;
+    
+    const totalPaid = payments
+      .filter(p => p.enrollmentId === parseInt(enrollmentId) && p.status === 'COMPLETED')
+      .reduce((sum, p) => sum + (p.amount || 0), 0);
+    
+    return Math.max(0, enrollment.programPrice - totalPaid);
+  };
+
+  // Format currency with Rs. instead of $
+  const formatCurrency = (amount) => {
+    return `Rs. ${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
+
+  // Get enrollment option label for Autocomplete
+  const getEnrollmentLabel = (option) => {
+    if (!option) return '';
+    return `${option.customerName} - ${option.programName} (${formatCurrency(option.programPrice)})`;
+  };
+
+  // DataGrid columns with fixed alignments
   const columns = [
     { 
       field: 'receiptNumber', 
       headerName: 'Receipt #', 
       flex: 0.8,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: ({ row }) => (
-        <Box display="flex" alignItems="center">
+        <Box display="flex" alignItems="center" justifyContent="center" width="100%">
           <FiFileText style={{ marginRight: '8px', color: colors.blueAccent[400] }} />
-          {row.receiptNumber}
+          {row?.receiptNumber || 'N/A'}
         </Box>
       )
     },
@@ -222,23 +256,35 @@ const PaymentsPage = () => {
       field: 'customerName', 
       headerName: 'Customer', 
       flex: 1,
+      headerAlign: 'left',
+      align: 'left',
       renderCell: ({ row }) => (
         <Box display="flex" alignItems="center">
           <FiUser style={{ marginRight: '8px', color: colors.greenAccent[500] }} />
-          {row.customerName}
+          {row?.customerName || 'N/A'}
         </Box>
       )
     },
-    { field: 'licenseType', headerName: 'License Type', flex: 1 },
+    { 
+      field: 'programName', 
+      headerName: 'Program', 
+      flex: 1,
+      headerAlign: 'left',
+      align: 'left',
+      renderCell: ({ row }) => (
+        <Typography>{row?.programName || 'N/A'}</Typography>
+      )
+    },
     { 
       field: 'amount', 
       headerName: 'Amount', 
       flex: 1,
+      headerAlign: 'right',
+      align: 'right',
       renderCell: ({ row }) => (
-        <Box display="flex" alignItems="center" color={colors.greenAccent[400]}>
-          <FiDollarSign style={{ marginRight: '4px' }} />
+        <Box display="flex" alignItems="center" justifyContent="flex-end" width="100%" color={colors.greenAccent[400]}>
           <Typography fontWeight="bold">
-            {row.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            {formatCurrency(row?.amount || 0)}
           </Typography>
         </Box>
       )
@@ -247,22 +293,15 @@ const PaymentsPage = () => {
       field: 'paymentDate', 
       headerName: 'Date', 
       flex: 1,
-      valueGetter: (params) => new Date(params.row.paymentDate),
+      headerAlign: 'center',
+      align: 'center',
+      valueGetter: (params) => {
+        return params.row && params.row.paymentDate ? new Date(params.row.paymentDate) : null;
+      },
       renderCell: ({ row }) => (
-        <Box display="flex" alignItems="center">
+        <Box display="flex" alignItems="center" justifyContent="center" width="100%">
           <FiCalendar style={{ marginRight: '8px', color: colors.blueAccent[400] }} />
-          {row.paymentDate.toLocaleDateString()}
-        </Box>
-      )
-    },
-    { 
-      field: 'paymentMethod', 
-      headerName: 'Method', 
-      flex: 1,
-      renderCell: ({ row }) => (
-        <Box display="flex" alignItems="center">
-          <FiCreditCard style={{ marginRight: '8px', color: colors.blueAccent[400] }} />
-          {row.paymentMethod}
+          {row && row.paymentDate ? new Date(row.paymentDate).toLocaleDateString() : 'N/A'}
         </Box>
       )
     },
@@ -270,16 +309,18 @@ const PaymentsPage = () => {
       field: 'status', 
       headerName: 'Status', 
       flex: 0.8,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: ({ row }) => {
-        const bgcolor = row.status === 'Completed' 
-          ? colors.greenAccent[600] 
-          : row.status === 'Pending' 
-            ? colors.blueAccent[600]
-            : colors.redAccent[600];
+        if (!row || !row.status) {
+          return <Typography>N/A</Typography>;
+        }
         
-        const icon = row.status === 'Completed' 
+        const statusColor = paymentService.getStatusColor(row.status);
+        
+        const icon = row.status === PaymentStatus.COMPLETED 
           ? <FiCheckCircle style={{ marginRight: '8px' }} />
-          : row.status === 'Pending'
+          : row.status === PaymentStatus.PENDING
             ? <FiCreditCard style={{ marginRight: '8px' }} />
             : <FiXCircle style={{ marginRight: '8px' }} />;
         
@@ -287,13 +328,16 @@ const PaymentsPage = () => {
           <Box
             display="flex"
             alignItems="center"
-            backgroundColor={bgcolor}
+            justifyContent="center"
+            backgroundColor={statusColor}
             p="5px 10px"
             borderRadius="4px"
+            width="80%"
+            mx="auto"
           >
             {icon}
             <Typography color={colors.grey[100]}>
-              {row.status}
+              {paymentService.getStatusDisplay(row.status)}
             </Typography>
           </Box>
         );
@@ -303,8 +347,10 @@ const PaymentsPage = () => {
       field: 'actions',
       headerName: 'Actions',
       flex: 0.8,
+      headerAlign: 'center',
+      align: 'center',
       renderCell: ({ row }) => (
-        <Box display="flex" gap="10px">
+        <Box display="flex" gap="10px" justifyContent="center" width="100%">
           <IconButton
             onClick={() => handleOpenDialog(true, row.id)}
             sx={{ color: colors.blueAccent[400] }}
@@ -367,7 +413,7 @@ const PaymentsPage = () => {
               Total Payments
             </Typography>
             <Typography variant="h3" fontWeight="bold" color={colors.greenAccent[500]}>
-              ${totalPayments.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              {formatCurrency(totalPayments)}
             </Typography>
           </Box>
         </Box>
@@ -421,7 +467,7 @@ const PaymentsPage = () => {
               Pending Payments
             </Typography>
             <Typography variant="h3" fontWeight="bold" color={colors.grey[100]}>
-              {payments.filter(p => p.status === 'Pending').length}
+              {payments.filter(p => p.status === PaymentStatus.PENDING).length}
             </Typography>
           </Box>
         </Box>
@@ -451,39 +497,46 @@ const PaymentsPage = () => {
       </Box>
 
       {/* Payments DataGrid */}
-      <Box
-        height="60vh"
-        sx={{
-          '& .MuiDataGrid-root': {
-            border: 'none',
-          },
-          '& .MuiDataGrid-cell': {
-            borderBottom: `1px solid ${colors.grey[800]} !important`,
-          },
-          '& .MuiDataGrid-columnHeaders': {
-            backgroundColor: colors.blueAccent[700],
-            borderBottom: 'none',
-          },
-          '& .MuiDataGrid-virtualScroller': {
-            backgroundColor: colors.primary[400],
-          },
-          '& .MuiDataGrid-footerContainer': {
-            borderTop: 'none',
-            backgroundColor: colors.blueAccent[700],
-          },
-          '& .MuiDataGrid-toolbarContainer .MuiButton-text': {
-            color: `${colors.grey[100]} !important`,
-          },
-        }}
-      >
-        <DataGrid 
-          rows={filteredPayments} 
-          columns={columns} 
-          pageSize={10}
-          rowsPerPageOptions={[10, 25, 50]}
-          checkboxSelection
-        />
-      </Box>
+      {loading && payments.length === 0 ? (
+        <Box display="flex" justifyContent="center" p={5}>
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Box
+          height="60vh"
+          sx={{
+            '& .MuiDataGrid-root': {
+              border: 'none',
+            },
+            '& .MuiDataGrid-cell': {
+              borderBottom: `1px solid ${colors.grey[800]} !important`,
+            },
+            '& .MuiDataGrid-columnHeaders': {
+              backgroundColor: colors.blueAccent[700],
+              borderBottom: 'none',
+            },
+            '& .MuiDataGrid-virtualScroller': {
+              backgroundColor: colors.primary[400],
+            },
+            '& .MuiDataGrid-footerContainer': {
+              borderTop: 'none',
+              backgroundColor: colors.blueAccent[700],
+            },
+            '& .MuiDataGrid-toolbarContainer .MuiButton-text': {
+              color: `${colors.grey[100]} !important`,
+            },
+          }}
+        >
+          <DataGrid 
+            rows={filteredPayments} 
+            columns={columns} 
+            pageSize={10}
+            rowsPerPageOptions={[10, 25, 50]}
+            checkboxSelection
+            loading={loading}
+          />
+        </Box>
+      )}
 
       {/* Add/Edit Payment Dialog */}
       <Dialog open={openDialog} onClose={handleCloseDialog} maxWidth="md" fullWidth>
@@ -493,83 +546,132 @@ const PaymentsPage = () => {
         <DialogContent sx={{ backgroundColor: colors.primary[400], paddingTop: '20px !important' }}>
           <LocalizationProvider dateAdapter={AdapterDateFns}>
             <Box display="grid" gap="20px" gridTemplateColumns="repeat(2, 1fr)">
-              <FormControl fullWidth variant="filled" sx={{ gridColumn: "span 1" }}>
-                <InputLabel>Customer</InputLabel>
-                <Select
-                  name="customerId"
-                  value={newPayment.customerId}
+              {/* Enrollment Selection with Autocomplete - disabled in edit mode */}
+              {!editMode ? (
+                <Box sx={{ gridColumn: "span 2" }}>
+                  <Autocomplete
+                    disabled={editMode}
+                    options={enrollments}
+                    value={selectedEnrollment}
+                    onChange={handleEnrollmentChange}
+                    getOptionLabel={getEnrollmentLabel}
+                    isOptionEqualToValue={(option, value) => option.id === value?.id}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        label="Search Enrollment"
+                        variant="filled"
+                        required
+                        InputProps={{
+                          ...params.InputProps,
+                          startAdornment: (
+                            <>
+                              <InputAdornment position="start">
+                                <FiSearch />
+                              </InputAdornment>
+                              {params.InputProps.startAdornment}
+                            </>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                </Box>
+              ) : (
+                // Display only enrollment info in edit mode
+                <Box sx={{ gridColumn: "span 2", mb: 1 }}>
+                  <Typography variant="subtitle1" fontWeight="bold">
+                    Enrollment:
+                  </Typography>
+                  <Typography>
+                    {selectedEnrollment ? getEnrollmentLabel(selectedEnrollment) : 'N/A'}
+                  </Typography>
+                </Box>
+              )}
+              
+              {/* Display program details if enrollment is selected */}
+              {selectedEnrollment && !editMode && (
+                <Box sx={{ gridColumn: "span 2", bgcolor: colors.primary[500], p: 2, borderRadius: '4px', mb: 2 }}>
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="subtitle1" fontWeight="bold">Program Price:</Typography>
+                    <Typography variant="subtitle1">{formatCurrency(selectedEnrollment.programPrice || 0)}</Typography>
+                  </Box>
+                  
+                  <Box display="flex" justifyContent="space-between" mb={1}>
+                    <Typography variant="subtitle1" fontWeight="bold">Total Paid:</Typography>
+                    <Typography variant="subtitle1">{formatCurrency(selectedEnrollment.programPrice - getRemainingAmount(selectedEnrollment.id) || 0)}</Typography>
+                  </Box>
+                  
+                  <Box display="flex" justifyContent="space-between">
+                    <Typography variant="subtitle1" fontWeight="bold" color={colors.greenAccent[400]}>Remaining Balance:</Typography>
+                    <Typography variant="subtitle1" fontWeight="bold" color={colors.greenAccent[400]}>
+                      {formatCurrency(getRemainingAmount(selectedEnrollment.id) || 0)}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              
+              {/* Amount - only in create mode */}
+              {!editMode && (
+                <TextField
+                  fullWidth
+                  variant="filled"
+                  label="Amount"
+                  name="amount"
+                  type="number"
+                  value={newPayment.amount}
                   onChange={handleInputChange}
-                >
-                  <MenuItem value="">Select Customer</MenuItem>
-                  {customerOptions.map(customer => (
-                    <MenuItem key={customer.id} value={customer.id}>
-                      {customer.name} ({customer.licenseType})
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-              
-              <TextField
-                fullWidth
-                variant="filled"
-                label="Amount"
-                name="amount"
-                type="number"
-                value={newPayment.amount}
-                onChange={handleInputChange}
-                sx={{ gridColumn: "span 1" }}
-                InputProps={{
-                  startAdornment: <Box mr={1}><FiDollarSign /></Box>
-                }}
-              />
-              
-              <Box sx={{ gridColumn: "span 1" }}>
-                <DatePicker
-                  label="Payment Date"
-                  value={newPayment.paymentDate}
-                  onChange={handleDateChange}
-                  renderInput={(params) => <TextField {...params} fullWidth variant="filled" />}
+                  sx={{ gridColumn: "span 2" }}
+                  InputProps={{
+                    startAdornment: <InputAdornment position="start">Rs.</InputAdornment>
+                  }}
                 />
-              </Box>
+              )}
               
-              <FormControl fullWidth variant="filled" sx={{ gridColumn: "span 1" }}>
-                <InputLabel>Payment Method</InputLabel>
+              {/* Payment Method - Improved Dropdown */}
+              <FormControl variant="filled" sx={{ gridColumn: "span 2" }}>
+                <InputLabel id="payment-method-label">Payment Method</InputLabel>
                 <Select
+                  labelId="payment-method-label"
                   name="paymentMethod"
                   value={newPayment.paymentMethod}
                   onChange={handleInputChange}
+                  required
                 >
                   <MenuItem value="">Select Method</MenuItem>
-                  <MenuItem value="Cash">Cash</MenuItem>
-                  <MenuItem value="Card">Card</MenuItem>
-                  <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
-                  <MenuItem value="Mobile Payment">Mobile Payment</MenuItem>
+                  <MenuItem value="CASH">Cash</MenuItem>
+                  <MenuItem value="CARD">Card</MenuItem>
+                  <MenuItem value="BANK_TRANSFER">Bank Transfer</MenuItem>
+                  <MenuItem value="MOBILE_PAYMENT">Mobile Payment</MenuItem>
                 </Select>
               </FormControl>
               
+              {/* Description */}
               <TextField
                 fullWidth
                 variant="filled"
                 label="Description"
                 name="description"
-                value={newPayment.description}
+                value={newPayment.description || ''}
                 onChange={handleInputChange}
                 multiline
                 rows={2}
                 sx={{ gridColumn: "span 2" }}
               />
               
+              {/* Status - only in edit mode */}
               {editMode && (
-                <FormControl fullWidth variant="filled" sx={{ gridColumn: "span 2" }}>
-                  <InputLabel>Status</InputLabel>
+                <FormControl variant="filled" sx={{ gridColumn: "span 2" }}>
+                  <InputLabel id="status-label">Status</InputLabel>
                   <Select
+                    labelId="status-label"
                     name="status"
-                    value={newPayment.status}
+                    value={newPayment.status || PaymentStatus.COMPLETED}
                     onChange={handleInputChange}
                   >
-                    <MenuItem value="Completed">Completed</MenuItem>
-                    <MenuItem value="Pending">Pending</MenuItem>
-                    <MenuItem value="Cancelled">Cancelled</MenuItem>
+                    <MenuItem value={PaymentStatus.COMPLETED}>Completed</MenuItem>
+                    <MenuItem value={PaymentStatus.PENDING}>Pending</MenuItem>
+                    <MenuItem value={PaymentStatus.CANCELLED}>Cancelled</MenuItem>
                   </Select>
                 </FormControl>
               )}
@@ -584,6 +686,10 @@ const PaymentsPage = () => {
             onClick={handleSavePayment} 
             color="primary" 
             variant="contained"
+            disabled={loading || 
+              (!editMode && (!newPayment.enrollmentId || !newPayment.amount || !newPayment.paymentMethod)) ||
+              (editMode && !newPayment.paymentMethod)
+            }
             sx={{
               backgroundColor: colors.greenAccent[600],
               '&:hover': {
@@ -591,7 +697,11 @@ const PaymentsPage = () => {
               }
             }}
           >
-            {editMode ? 'Update Payment' : 'Save Payment'}
+            {loading ? (
+              <CircularProgress size={24} />
+            ) : (
+              editMode ? 'Update Payment' : 'Save Payment'
+            )}
           </Button>
         </DialogActions>
       </Dialog>

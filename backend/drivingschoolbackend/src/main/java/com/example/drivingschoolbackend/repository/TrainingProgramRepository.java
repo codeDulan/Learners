@@ -11,4 +11,5 @@ import java.util.List;
 public interface TrainingProgramRepository extends JpaRepository<TrainingProgram, Long> {
     List<TrainingProgram> findAllByOrderByIdDesc();
     List<TrainingProgram> findByLicenseType(Session.LicenseType licenseType);
+    List<TrainingProgram> findByNameContainingIgnoreCase(String name);
 }

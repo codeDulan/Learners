@@ -39,4 +39,8 @@ public class Customer {
     @ManyToMany(mappedBy = "enrolledCustomers")
     @EqualsAndHashCode.Exclude
     private Set<Session> enrolledSessions = new HashSet<>();
+
+    @OneToMany(mappedBy = "customer", cascade = CascadeType.ALL)
+    @EqualsAndHashCode.Exclude
+    private Set<Enrollment> enrollments = new HashSet<>();
 }

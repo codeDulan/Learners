@@ -8,7 +8,7 @@ import ProtectedRoute from './Components/ProtectedRoute';
 import { ToastContainer } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 
-// Import new admin components
+// Import admin components
 import AdminLayout from "./Components/Admin/AdminLayout";
 import AdminDashboard from "./Components/Admin/AdminDashboard";
 import CustomersPage from "./Components/Admin/CustomersPage";
@@ -17,6 +17,7 @@ import PaymentsPage from "./Components/Admin/PaymentsPage";
 import DocumentsPage from "./Components/Admin/DocumentsPage";
 import TrainingPage from "./Components/Admin/TrainingPage";
 import SettingsPage from "./Components/Admin/SettingsPage";
+import EnrollmentsPage from "./Components/Admin/EnrollmentsPage"; // Added this line
 
 const App = () => {
   return (
@@ -45,6 +46,7 @@ const App = () => {
             <Route path="customers" element={<CustomersPage />} />
             <Route path="sessions" element={<SessionsPage />} />
             <Route path="training" element={<TrainingPage />} />
+            <Route path="enrollments" element={<EnrollmentsPage />} /> {/* Added this line */}
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
             <Route path="settings" element={<SettingsPage />} />
