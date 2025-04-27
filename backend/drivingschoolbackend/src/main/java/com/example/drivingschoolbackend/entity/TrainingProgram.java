@@ -1,10 +1,10 @@
 package com.example.drivingschoolbackend.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
+
+import java.util.HashSet;
+import java.util.Set;
 
 @Entity
 @Table(name = "training_programs")
@@ -37,4 +37,9 @@ public class TrainingProgram {
     // Store prerequisites as a comma-separated string, to be parsed on retrieval
     @Column(columnDefinition = "TEXT")
     private String prerequisites;
+
+    @OneToMany(mappedBy = "trainingProgram", cascade = CascadeType.ALL)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<Enrollment> enrollments = new HashSet<>();
 }

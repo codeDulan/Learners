@@ -11,7 +11,8 @@ import {
   FiDollarSign,
   FiFileText,
   FiUpload,
-  FiSettings
+  FiSettings,
+  FiUserPlus  // Added for enrollments
 } from 'react-icons/fi';
 
 const AdminSidebar = () => {
@@ -22,8 +23,9 @@ const AdminSidebar = () => {
   const navItems = [
     { icon: <FiHome />, label: 'Dashboard', path: '/staff/dashboard' },
     { icon: <FiUsers />, label: 'Customers', path: '/staff/customers' },
+    { icon: <FiUserPlus />, label: 'Enrollments', path: '/staff/enrollments' }, // Added this line
     { icon: <FiCalendar />, label: 'Sessions', path: '/staff/sessions' },
-    { icon: <FiBookOpen />, label: 'Training', path: '/staff/training' },
+    { icon: <FiBookOpen />, label: 'Programs', path: '/staff/training' },
     { icon: <FiDollarSign />, label: 'Payments', path: '/staff/payments' },
     { icon: <FiFileText />, label: 'Reports', path: '/staff/reports' },
     { icon: <FiUpload />, label: 'Documents', path: '/staff/documents' },
