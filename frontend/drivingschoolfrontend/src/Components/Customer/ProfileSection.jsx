@@ -8,7 +8,7 @@ const API_BASE_URL = "http://localhost:8080/api";
 
 // Get auth token from localStorage
 const getAuthToken = () => {
-  return localStorage.getItem('authToken');
+  return localStorage.getItem('authToken') || localStorage.getItem('token');
 };
 
 // Headers configuration with auth token

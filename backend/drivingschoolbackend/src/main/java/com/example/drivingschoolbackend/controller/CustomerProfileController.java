@@ -5,6 +5,7 @@ import com.example.drivingschoolbackend.entity.Customer;
 import com.example.drivingschoolbackend.repository.CustomerRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +18,7 @@ public class CustomerProfileController {
     private final CustomerRepository customerRepository;
 
     @GetMapping
+    @PreAuthorize("hasRole('CUSTOMER')")  // Added security annotation
     public ResponseEntity<CustomerDto> getMyProfile() {
         Customer customer = getCurrentCustomer();
         CustomerDto customerDto = mapToDto(customer);

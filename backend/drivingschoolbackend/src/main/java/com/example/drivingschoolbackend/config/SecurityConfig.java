@@ -3,6 +3,7 @@ package com.example.drivingschoolbackend.config;
 import com.example.drivingschoolbackend.security.JwtAuthFilter;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -20,6 +21,7 @@ import java.util.Collections;
 
 @Configuration
 @EnableWebSecurity
+@EnableMethodSecurity
 public class SecurityConfig {
 
     private final JwtAuthFilter jwtAuthFilter;
@@ -39,12 +41,21 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/staff/auth/login", "/api/customers/auth/login", "/api/staff/auth/register", "/api/customers/auth/register", "/api/**").permitAll()
+                        // Public endpoints
+                        .requestMatchers("/api/staff/auth/login", "/api/customers/auth/login",
+                                "/api/staff/auth/register", "/api/customers/auth/register").permitAll()
+                        .requestMatchers("/api/training-programs/**").permitAll()
+                        .requestMatchers("/api/customers/sessions/available").permitAll()
                         // Allow OPTIONS requests for CORS preflight
                         .requestMatchers(org.springframework.http.HttpMethod.OPTIONS, "/**").permitAll()
+                        // Protected staff endpoints
                         .requestMatchers("/api/staff/**").hasAnyRole("ADMIN", "WORKER", "INSTRUCTOR")
-                        .requestMatchers("/api/customers/**").authenticated()
-                        .anyRequest().denyAll()
+                        // Protected customer endpoints
+                        .requestMatchers("/api/customers/**").hasRole("CUSTOMER")
+                        // Training materials accessible to all authenticated users
+                        .requestMatchers("/api/training-materials/**").hasAnyRole("CUSTOMER", "ADMIN", "WORKER", "INSTRUCTOR")
+                        // Default deny for unspecified endpoints
+                        .anyRequest().authenticated()
                 )
                 .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);

@@ -35,26 +35,28 @@ const SessionsSection = () => {
     setSessionsError(null);
     
     try {
-      const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      console.log("Using auth token:", token);
-  
-      if (!token) {
-        console.warn("No auth token found in localStorage");
-        setSessionsError("Authentication token not found. Please log in again.");
-        return;
-      }
-  
-      const headers = { 
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json'
-      };
-      
       if (sessionView === "available") {
         console.log("Fetching available sessions from:", `${API_URL}/customers/sessions/available`);
-        const response = await axios.get(`${API_URL}/customers/sessions/available`, { headers });
+        // No auth token needed for public endpoint
+        const response = await axios.get(`${API_URL}/customers/sessions/available`);
         console.log("Available sessions response:", response.data);
         setAvailableSessions(response.data);
       } else {
+        // For authenticated endpoints, we need the token
+        const token = localStorage.getItem('token') || localStorage.getItem('authToken');
+        console.log("Using auth token:", token);
+    
+        if (!token) {
+          console.warn("No auth token found in localStorage");
+          setSessionsError("Authentication token not found. Please log in again.");
+          return;
+        }
+    
+        const headers = { 
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        };
+        
         console.log("Fetching my enrolled sessions from:", `${API_URL}/customers/sessions/my-sessions`);
         const response = await axios.get(`${API_URL}/customers/sessions/my-sessions`, { headers });
         console.log("My enrollments response:", response.data);
@@ -138,7 +140,7 @@ const SessionsSection = () => {
   const handleBookSession = async (sessionId) => {
     try {
       const token = localStorage.getItem('token') || localStorage.getItem('authToken');
-      console.log("Using token for booking:", token);
+      console.log("Current token:", token);
       
       if (!token) {
         alert("Authentication token not found. Please log in again.");

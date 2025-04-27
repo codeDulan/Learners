@@ -22,7 +22,7 @@ public class CustomerFeedbackController {
     private final CustomerRepository customerRepository;
 
     @GetMapping("/my-feedbacks")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER')")  // Changed from hasAuthority to hasRole
     public ResponseEntity<List<FeedbackResponseDto>> getMyFeedbacks(Authentication authentication) {
         // In a real implementation, you'd extract the customer ID from the authentication
         // For now, assuming we have a method to get the customer ID from authentication
@@ -31,7 +31,7 @@ public class CustomerFeedbackController {
     }
 
     @GetMapping("/session/{sessionId}")
-    @PreAuthorize("hasAuthority('CUSTOMER')")
+    @PreAuthorize("hasRole('CUSTOMER')")  // Changed from hasAuthority to hasRole
     public ResponseEntity<List<FeedbackResponseDto>> getFeedbacksForSession(
             @PathVariable Long sessionId,
             Authentication authentication) {

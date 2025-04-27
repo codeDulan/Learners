@@ -19,6 +19,7 @@ import TrainingPage from "./Components/Admin/TrainingPage";
 import SettingsPage from "./Components/Admin/SettingsPage";
 import EnrollmentsPage from "./Components/Admin/EnrollmentsPage";
 import FeedbackPage from './Components/Admin/FeedbackPage';
+import ReportsPage from './Components/Admin/ReportsPage'; // Add this line
 
 const App = () => {
   return (
@@ -47,9 +48,10 @@ const App = () => {
             <Route path="customers" element={<CustomersPage />} />
             <Route path="sessions" element={<SessionsPage />} />
             <Route path="training" element={<TrainingPage />} />
-            <Route path="enrollments" element={<EnrollmentsPage />} /> {/* Added this line */}
+            <Route path="enrollments" element={<EnrollmentsPage />} />
             <Route path="payments" element={<PaymentsPage />} />
             <Route path="documents" element={<DocumentsPage />} />
+            <Route path="reports" element={<ReportsPage />} /> {/* Add this line */}
             <Route path="settings" element={<SettingsPage />} />
             <Route path="feedback" element={<FeedbackPage />} />
           </Route>

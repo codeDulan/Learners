@@ -48,13 +48,14 @@ const CustomersPage = () => {
     }
   });
 
-  // Fetch all customers
+  // Fetch all customers - Updated to use staff endpoint
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get(`${API_BASE_URL}/customers`, getHeaders());
+      // Updated endpoint from /customers to /staff/customers
+      const response = await axios.get(`${API_BASE_URL}/staff/customers`, getHeaders());
 
-      console.log('Response from /customers:', response.data);
+      console.log('Response from /staff/customers:', response.data);
       
       // Transform the data to match our grid structure
       const formattedCustomers = response.data.map(customer => ({
@@ -135,10 +136,10 @@ const CustomersPage = () => {
     });
   };
 
-  // Add new customer
+  // Add new customer - Keep the registration endpoint the same
   const handleAddCustomer = async () => {
     try {
-      // Registration endpoint
+      // Registration endpoint remains the same
       const response = await axios.post(
         `${API_BASE_URL}/customers/auth/register`, 
         newCustomer
@@ -153,7 +154,7 @@ const CustomersPage = () => {
     }
   };
 
-  // Update existing customer
+  // Update existing customer - Updated to use staff endpoint
   const handleUpdateCustomer = async () => {
     try {
       const customerData = {
@@ -166,8 +167,9 @@ const CustomersPage = () => {
         licenseNumber: newCustomer.licenseNumber
       };
       
+      // Updated endpoint from /customers to /staff/customers
       await axios.put(
-        `${API_BASE_URL}/customers/${selectedCustomer.id}`, 
+        `${API_BASE_URL}/staff/customers/${selectedCustomer.id}`, 
         customerData,
         getHeaders()
       );
@@ -181,11 +183,12 @@ const CustomersPage = () => {
     }
   };
 
-  // Delete customer
+  // Delete customer - Updated to use staff endpoint
   const handleDeleteCustomer = async (id) => {
     if (window.confirm('Are you sure you want to delete this customer?')) {
       try {
-        await axios.delete(`${API_BASE_URL}/customers/${id}`, getHeaders());
+        // Updated endpoint from /customers to /staff/customers
+        await axios.delete(`${API_BASE_URL}/staff/customers/${id}`, getHeaders());
         toast.success('Customer deleted successfully');
         fetchCustomers(); // Refresh the list
       } catch (error) {

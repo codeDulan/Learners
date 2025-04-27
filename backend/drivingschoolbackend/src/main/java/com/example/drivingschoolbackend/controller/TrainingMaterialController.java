@@ -18,22 +18,25 @@ public class TrainingMaterialController {
 
     private final TrainingMaterialService trainingMaterialService;
 
+    // Get materials by license type - accessible to customers and staff
     @GetMapping
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN', 'WORKER', 'INSTRUCTOR')")
     public ResponseEntity<List<TrainingMaterialDTO.ResponseDTO>> getMaterialsByLicenseType(
             @RequestParam(required = false, defaultValue = "All") String licenseType
     ) {
         return ResponseEntity.ok(trainingMaterialService.getMaterialsByLicenseType(licenseType));
     }
 
+    // Get material by ID - accessible to customers and staff
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN', 'WORKER', 'INSTRUCTOR')")
     public ResponseEntity<TrainingMaterialDTO.ResponseDTO> getMaterialById(@PathVariable Long id) {
         return ResponseEntity.ok(trainingMaterialService.getMaterialById(id));
     }
 
+    // Download material - accessible to customers and staff
     @GetMapping("/{id}/download")
-    @PreAuthorize("hasRole('STUDENT')")
+    @PreAuthorize("hasAnyRole('CUSTOMER', 'ADMIN', 'WORKER', 'INSTRUCTOR')")
     public ResponseEntity<byte[]> downloadMaterial(@PathVariable Long id) throws IOException {
         TrainingMaterialDTO.ResponseDTO material = trainingMaterialService.getMaterialById(id);
         byte[] fileData = trainingMaterialService.getFileData(id);

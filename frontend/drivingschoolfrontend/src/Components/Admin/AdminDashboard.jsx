@@ -83,7 +83,7 @@ const AdminDashboard = () => {
         
         // Fetch customers
         const customersResponse = await axios.get(
-          `${API_BASE_URL}/customers`,
+          `${API_BASE_URL}/staff/customers`,
           getAuthHeaders()
         );
         setCustomers(customersResponse.data || []);

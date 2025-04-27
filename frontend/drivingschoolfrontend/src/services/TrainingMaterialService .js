@@ -6,7 +6,7 @@ class TrainingMaterialService {
   
   // Get auth token
   getAuthToken() {
-    return localStorage.getItem('jwtToken');
+    return localStorage.getItem('authToken') || localStorage.getItem('token');
   }
 
   // Admin: Get all training materials

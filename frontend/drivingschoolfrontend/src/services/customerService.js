@@ -22,7 +22,7 @@ const customerService = {
   // Admin endpoints for customer management
   getAllCustomers: async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/customers`, getAuthHeaders());
+      const response = await axios.get(`${API_BASE_URL}/staff/customers`, getAuthHeaders());
       return response.data;
     } catch (error) {
       console.error('Error fetching customers:', error);
@@ -32,7 +32,7 @@ const customerService = {
 
   getCustomerById: async (id) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/customers/${id}`, getAuthHeaders());
+      const response = await axios.get(`${API_BASE_URL}/staff/customers/${id}`, getAuthHeaders());
       return response.data;
     } catch (error) {
       console.error(`Error fetching customer with id ${id}:`, error);

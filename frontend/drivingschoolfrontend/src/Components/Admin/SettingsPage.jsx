@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Box, 
   Typography, 
@@ -7,83 +7,29 @@ import {
   CardContent,
   TextField,
   Button,
-  FormControl,
-  FormControlLabel,
-  Switch,
-  InputLabel,
-  Select,
-  MenuItem,
   Divider,
   Grid,
-  IconButton,
-  List,
-  ListItem,
-  ListItemText,
-  ListItemSecondaryAction,
-  Avatar
+  Alert,
+  Snackbar
 } from '@mui/material';
 import { tokens } from '../../theme';
 import { 
   FiSave, 
   FiUser, 
-  FiMail, 
-  FiPhone, 
   FiLock, 
-  FiFileText,
-  FiAlertTriangle,
-  FiTrash2,
-  FiUserPlus
+  FiAlertTriangle
 } from 'react-icons/fi';
 
-const SettingsPage = () => {
+const AdminSettingsPage = () => {
   const theme = useTheme();
   const colors = tokens(theme.palette.mode);
   
-  // Profile settings
-  const [profileSettings, setProfileSettings] = useState({
-    companyName: 'Tharuka Driving School',
-    address: 'No.253 Kurunegala Rd, Wariyapola',
-    email: 'tharukadriving@gmail.com',
-    phone: '071-4089577',
-    website: 'www.tharukadriving.com',
-    logo: null
+  // Admin Info
+  const [adminInfo, setAdminInfo] = useState({
+    name: '',
+    email: '',
+    role: ''
   });
-  
-  // System settings
-  const [systemSettings, setSystemSettings] = useState({
-    darkMode: true,
-    emailNotifications: true,
-    smsNotifications: true,
-    sessionReminders: true,
-    paymentReminders: true,
-    dataBackup: false,
-    language: 'english'
-  });
-  
-  // Staff accounts
-  const [staffAccounts, setStaffAccounts] = useState([
-    { 
-      id: 1, 
-      name: 'Admin User', 
-      email: 'admin@tharukadriving.com', 
-      role: 'Administrator', 
-      lastActive: '2025-04-22' 
-    },
-    { 
-      id: 2, 
-      name: 'John Smith', 
-      email: 'john@tharukadriving.com', 
-      role: 'Instructor', 
-      lastActive: '2025-04-23' 
-    },
-    { 
-      id: 3, 
-      name: 'Jane Doe', 
-      email: 'jane@tharukadriving.com', 
-      role: 'Office Staff', 
-      lastActive: '2025-04-21' 
-    }
-  ]);
   
   // Password change
   const [passwordData, setPasswordData] = useState({
@@ -92,26 +38,66 @@ const SettingsPage = () => {
     confirmPassword: ''
   });
   
+  // Alert states
+  const [alertState, setAlertState] = useState({
+    open: false,
+    message: '',
+    severity: 'success'
+  });
+  
+  // Fetch admin info on component mount
+  useEffect(() => {
+    fetchAdminInfo();
+  }, []);
+  
+  const fetchAdminInfo = async () => {
+    try {
+      // Get token from localStorage - FIXED: changed from 'token' to 'authToken'
+      const token = localStorage.getItem('authToken');
+      
+      // Check if token exists
+      if (!token) {
+        showAlert('No authentication token found. Please log in again.', 'error');
+        console.error('No token found in localStorage');
+        return;
+      }
+      
+      console.log('Using token:', token); // Debug: log the token
+      
+      const response = await fetch('http://localhost:8080/api/staff/admin/info', {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      console.log('Response status:', response.status); // Debug: log response status
+      
+      if (response.ok) {
+        const data = await response.json();
+        console.log('Received staff data:', data); // Debug: log the data
+        setAdminInfo(data);
+      } else {
+        // Try to get error details if possible
+        try {
+          const errorData = await response.json();
+          showAlert(errorData.message || 'Failed to load staff information', 'error');
+          console.error('Error response:', errorData);
+        } catch (e) {
+          showAlert(`Failed to load staff information (Status: ${response.status})`, 'error');
+        }
+      }
+    } catch (error) {
+      showAlert('Error fetching staff information', 'error');
+      console.error('Fetch error:', error);
+    }
+  };
+  
   // Handle input changes
-  const handleProfileChange = (e) => {
+  const handleAdminInfoChange = (e) => {
     const { name, value } = e.target;
-    setProfileSettings({
-      ...profileSettings,
-      [name]: value
-    });
-  };
-  
-  const handleSystemToggle = (name) => {
-    setSystemSettings({
-      ...systemSettings,
-      [name]: !systemSettings[name]
-    });
-  };
-  
-  const handleSystemChange = (e) => {
-    const { name, value } = e.target;
-    setSystemSettings({
-      ...systemSettings,
+    setAdminInfo({
+      ...adminInfo,
       [name]: value
     });
   };
@@ -125,58 +111,143 @@ const SettingsPage = () => {
   };
   
   // Handle save functions
-  const saveProfileSettings = () => {
-    // In a real application, this would save to the backend
-    alert('Company profile settings saved');
+  const saveAdminInfo = async () => {
+    try {
+      // FIXED: changed from 'token' to 'authToken'
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        showAlert('No authentication token found. Please log in again.', 'error');
+        return;
+      }
+      
+      const response = await fetch('http://localhost:8080/api/staff/admin/update-info', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: adminInfo.name
+        })
+      });
+      
+      console.log('Update response status:', response.status);
+      
+      if (response.ok) {
+        showAlert('Staff information updated successfully', 'success');
+      } else {
+        try {
+          const errorData = await response.json();
+          showAlert(errorData.message || 'Failed to update staff information', 'error');
+          console.error('Error updating:', errorData);
+        } catch (e) {
+          showAlert(`Failed to update staff information (Status: ${response.status})`, 'error');
+        }
+      }
+    } catch (error) {
+      showAlert('Error updating staff information', 'error');
+      console.error('Error:', error);
+    }
   };
   
-  const saveSystemSettings = () => {
-    // In a real application, this would save to the backend
-    alert('System settings saved');
-  };
-  
-  const changePassword = () => {
+  const changePassword = async () => {
+    // Validate passwords
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert('New passwords do not match');
+      showAlert('New passwords do not match', 'error');
       return;
     }
     
     if (passwordData.newPassword.length < 8) {
-      alert('Password must be at least 8 characters');
+      showAlert('Password must be at least 8 characters', 'error');
       return;
     }
     
-    // In a real application, this would send to the backend
-    alert('Password changed successfully');
-    setPasswordData({
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
+    try {
+      // FIXED: changed from 'token' to 'authToken'
+      const token = localStorage.getItem('authToken');
+      if (!token) {
+        showAlert('No authentication token found. Please log in again.', 'error');
+        return;
+      }
+      
+      const response = await fetch('http://localhost:8080/api/staff/admin/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
+      });
+      
+      console.log('Password change response status:', response.status);
+      
+      if (response.ok) {
+        showAlert('Password changed successfully', 'success');
+        setPasswordData({
+          currentPassword: '',
+          newPassword: '',
+          confirmPassword: ''
+        });
+      } else {
+        try {
+          const errorData = await response.json();
+          showAlert(errorData.message || 'Failed to change password', 'error');
+          console.error('Error changing password:', errorData);
+        } catch (e) {
+          showAlert(`Failed to change password (Status: ${response.status})`, 'error');
+        }
+      }
+    } catch (error) {
+      showAlert('Error changing password', 'error');
+      console.error('Error:', error);
+    }
+  };
+  
+  // Alert helper
+  const showAlert = (message, severity) => {
+    setAlertState({
+      open: true,
+      message,
+      severity
     });
   };
   
-  const deleteStaffAccount = (id) => {
-    if (window.confirm('Are you sure you want to delete this staff account?')) {
-      const updatedStaff = staffAccounts.filter(staff => staff.id !== id);
-      setStaffAccounts(updatedStaff);
-    }
+  const handleCloseAlert = () => {
+    setAlertState({
+      ...alertState,
+      open: false
+    });
   };
   
   return (
     <Box>
       <Typography variant="h2" fontWeight="bold" color={colors.grey[100]} mb={4}>
-        Settings
+        Staff Settings
       </Typography>
       
-      <Grid container spacing={4}>
-        {/* Company Profile Settings */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ backgroundColor: colors.primary[400], height: '100%' }}>
+      <Snackbar 
+        open={alertState.open} 
+        autoHideDuration={6000} 
+        onClose={handleCloseAlert}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+      >
+        <Alert onClose={handleCloseAlert} severity={alertState.severity}>
+          {alertState.message}
+        </Alert>
+      </Snackbar>
+      
+      <Grid container spacing={4} direction="column">
+        {/* Admin Information */}
+        <Grid item xs={12}>
+          <Card sx={{ backgroundColor: colors.primary[400] }}>
             <CardContent>
               <Box display="flex" alignItems="center" mb={3}>
-                <FiFileText size={24} style={{ color: colors.greenAccent[500], marginRight: '12px' }} />
+                <FiUser size={24} style={{ color: colors.greenAccent[500], marginRight: '12px' }} />
                 <Typography variant="h5" fontWeight="bold">
-                  Company Profile
+                  Staff Information
                 </Typography>
               </Box>
               
@@ -186,21 +257,10 @@ const SettingsPage = () => {
                 <TextField
                   fullWidth
                   variant="filled"
-                  label="Company Name"
-                  name="companyName"
-                  value={profileSettings.companyName}
-                  onChange={handleProfileChange}
-                />
-                
-                <TextField
-                  fullWidth
-                  variant="filled"
-                  label="Address"
-                  name="address"
-                  value={profileSettings.address}
-                  onChange={handleProfileChange}
-                  multiline
-                  rows={2}
+                  label="Name"
+                  name="name"
+                  value={adminInfo.name}
+                  onChange={handleAdminInfoChange}
                 />
                 
                 <TextField
@@ -208,38 +268,25 @@ const SettingsPage = () => {
                   variant="filled"
                   label="Email"
                   name="email"
-                  value={profileSettings.email}
-                  onChange={handleProfileChange}
-                  InputProps={{
-                    startAdornment: <FiMail style={{ marginRight: '8px' }} />,
-                  }}
+                  value={adminInfo.email}
+                  disabled
+                  helperText="Email cannot be changed"
                 />
                 
                 <TextField
                   fullWidth
                   variant="filled"
-                  label="Phone"
-                  name="phone"
-                  value={profileSettings.phone}
-                  onChange={handleProfileChange}
-                  InputProps={{
-                    startAdornment: <FiPhone style={{ marginRight: '8px' }} />,
-                  }}
-                />
-                
-                <TextField
-                  fullWidth
-                  variant="filled"
-                  label="Website"
-                  name="website"
-                  value={profileSettings.website}
-                  onChange={handleProfileChange}
+                  label="Role"
+                  name="role"
+                  value={adminInfo.role}
+                  disabled
+                  helperText="Role cannot be changed"
                 />
                 
                 <Button
                   variant="contained"
                   startIcon={<FiSave />}
-                  onClick={saveProfileSettings}
+                  onClick={saveAdminInfo}
                   sx={{
                     backgroundColor: colors.greenAccent[600],
                     mt: 2,
@@ -248,119 +295,7 @@ const SettingsPage = () => {
                     }
                   }}
                 >
-                  Save Profile Settings
-                </Button>
-              </Box>
-            </CardContent>
-          </Card>
-        </Grid>
-        
-        {/* System Settings */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ backgroundColor: colors.primary[400], height: '100%' }}>
-            <CardContent>
-              <Box display="flex" alignItems="center" mb={3}>
-                <FiLock size={24} style={{ color: colors.greenAccent[500], marginRight: '12px' }} />
-                <Typography variant="h5" fontWeight="bold">
-                  System Settings
-                </Typography>
-              </Box>
-              
-              <Divider sx={{ mb: 3 }} />
-              
-              <Box component="form" display="flex" flexDirection="column" gap={2}>
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.darkMode}
-                      onChange={() => handleSystemToggle('darkMode')}
-                      color="primary"
-                    />
-                  }
-                  label="Dark Mode"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.emailNotifications}
-                      onChange={() => handleSystemToggle('emailNotifications')}
-                      color="primary"
-                    />
-                  }
-                  label="Email Notifications"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.smsNotifications}
-                      onChange={() => handleSystemToggle('smsNotifications')}
-                      color="primary"
-                    />
-                  }
-                  label="SMS Notifications"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.sessionReminders}
-                      onChange={() => handleSystemToggle('sessionReminders')}
-                      color="primary"
-                    />
-                  }
-                  label="Session Reminders"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.paymentReminders}
-                      onChange={() => handleSystemToggle('paymentReminders')}
-                      color="primary"
-                    />
-                  }
-                  label="Payment Reminders"
-                />
-                
-                <FormControlLabel
-                  control={
-                    <Switch 
-                      checked={systemSettings.dataBackup}
-                      onChange={() => handleSystemToggle('dataBackup')}
-                      color="primary"
-                    />
-                  }
-                  label="Automatic Data Backup"
-                />
-                
-                <FormControl fullWidth variant="filled">
-                  <InputLabel>Language</InputLabel>
-                  <Select
-                    name="language"
-                    value={systemSettings.language}
-                    onChange={handleSystemChange}
-                  >
-                    <MenuItem value="english">English</MenuItem>
-                    <MenuItem value="sinhala">Sinhala</MenuItem>
-                    <MenuItem value="tamil">Tamil</MenuItem>
-                  </Select>
-                </FormControl>
-                
-                <Button
-                  variant="contained"
-                  startIcon={<FiSave />}
-                  onClick={saveSystemSettings}
-                  sx={{
-                    backgroundColor: colors.greenAccent[600],
-                    mt: 2,
-                    '&:hover': {
-                      backgroundColor: colors.greenAccent[700]
-                    }
-                  }}
-                >
-                  Save System Settings
+                  Save Information
                 </Button>
               </Box>
             </CardContent>
@@ -368,7 +303,7 @@ const SettingsPage = () => {
         </Grid>
         
         {/* Password Change */}
-        <Grid item xs={12} md={6}>
+        <Grid item xs={12}>
           <Card sx={{ backgroundColor: colors.primary[400] }}>
             <CardContent>
               <Box display="flex" alignItems="center" mb={3}>
@@ -434,80 +369,9 @@ const SettingsPage = () => {
             </CardContent>
           </Card>
         </Grid>
-        
-        {/* Staff Accounts */}
-        <Grid item xs={12} md={6}>
-          <Card sx={{ backgroundColor: colors.primary[400] }}>
-            <CardContent>
-              <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-                <Box display="flex" alignItems="center">
-                  <FiUser size={24} style={{ color: colors.blueAccent[500], marginRight: '12px' }} />
-                  <Typography variant="h5" fontWeight="bold">
-                    Staff Accounts
-                  </Typography>
-                </Box>
-                
-                <Button
-                  variant="contained"
-                  startIcon={<FiUserPlus />}
-                  sx={{
-                    backgroundColor: colors.blueAccent[600],
-                    '&:hover': {
-                      backgroundColor: colors.blueAccent[700]
-                    }
-                  }}
-                >
-                  Add Staff
-                </Button>
-              </Box>
-              
-              <Divider sx={{ mb: 3 }} />
-              
-              <List>
-                {staffAccounts.map((staff) => (
-                  <ListItem key={staff.id} sx={{ 
-                    p: 2, 
-                    mb: 1, 
-                    backgroundColor: colors.primary[500],
-                    borderRadius: '4px'
-                  }}>
-                    <Avatar 
-                      sx={{ 
-                        bgcolor: 
-                          staff.role === 'Administrator' ? colors.redAccent[500] :
-                          staff.role === 'Instructor' ? colors.greenAccent[500] :
-                          colors.blueAccent[500],
-                        mr: 2
-                      }}
-                    >
-                      {staff.name.charAt(0)}
-                    </Avatar>
-                    <ListItemText
-                      primary={staff.name}
-                      secondary={
-                        <Box component="span" sx={{ color: colors.grey[300] }}>
-                          {staff.email} • {staff.role} • Last active: {staff.lastActive}
-                        </Box>
-                      }
-                    />
-                    <ListItemSecondaryAction>
-                      <IconButton 
-                        edge="end" 
-                        onClick={() => deleteStaffAccount(staff.id)}
-                        sx={{ color: colors.redAccent[400] }}
-                      >
-                        <FiTrash2 />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
-            </CardContent>
-          </Card>
-        </Grid>
       </Grid>
     </Box>
   );
 };
 
-export default SettingsPage;
+export default AdminSettingsPage;
