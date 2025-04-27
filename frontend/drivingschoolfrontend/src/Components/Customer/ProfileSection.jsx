@@ -242,15 +242,15 @@ const CustomerProfileSection = () => {
                 <div className="w-full lg:w-1/2 p-4">
                   <div className="flex justify-between items-center p-2 border-b border-gray-700">
                     <span>Total Package:</span>
-                    <span className="font-bold">${fullPayment}</span>
+                    <span className="font-bold">Rs.{fullPayment}</span>
                   </div>
                   <div className="flex justify-between items-center p-2 border-b border-gray-700">
                     <span>Paid:</span>
-                    <span className="font-bold text-green-500">${paidAmount}</span>
+                    <span className="font-bold text-green-500">Rs.{paidAmount}</span>
                   </div>
                   <div className="flex justify-between items-center p-2">
                     <span>Remaining:</span>
-                    <span className="font-bold text-red-500">${remainingPayment}</span>
+                    <span className="font-bold text-red-500">Rs.{remainingPayment}</span>
                   </div>
                 </div>
               </div>

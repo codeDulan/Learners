@@ -37,7 +37,8 @@ public class CustomerProfileController {
                 .lastName(customer.getLastName())
                 .email(customer.getEmail())
                 .phoneNumber(customer.getPhoneNumber())
-                // Add more fields if needed
+                .address(customer.getAddress())
+                .nic(customer.getNic())
                 .build();
     }
 }
